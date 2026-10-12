@@ -1,0 +1,38 @@
+<?php
+defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
+
+global $wpdb;
+$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'usmd_sites' ); // phpcs:ignore WordPress.DB
+$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'usmd_activity' ); // phpcs:ignore WordPress.DB
+
+foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk' ) as $usmd_opt ) {
+	delete_option( $usmd_opt );
+}
+wp_clear_scheduled_hook( 'usmd_sync_tick' );
+wp_clear_scheduled_hook( 'usmd_report_tick' );
+if ( function_exists( 'wp_unschedule_hook' ) ) {
+	wp_unschedule_hook( 'usmd_sync_site' );
+	wp_unschedule_hook( 'usmd_thumb' );
+	wp_unschedule_hook( 'usmd_vuln_site' );
+}
+
+// Cached screenshots and temporary plugin packages.
+$usmd_upload = wp_upload_dir( null, false );
+foreach ( array( 'usmd-thumbs', 'usmd-packages', 'usmd-connector' ) as $usmd_folder ) {
+	$usmd_dir = trailingslashit( $usmd_upload['basedir'] ) . $usmd_folder;
+	if ( ! is_dir( $usmd_dir ) ) {
+		continue;
+	}
+	foreach ( (array) glob( $usmd_dir . '/{,*/}{,.}*', GLOB_BRACE ) as $usmd_file ) {
+		if ( is_file( $usmd_file ) ) {
+			wp_delete_file( $usmd_file );
+		}
+	}
+	foreach ( (array) glob( $usmd_dir . '/*', GLOB_ONLYDIR ) as $usmd_sub ) {
+		@rmdir( $usmd_sub ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- removing this plugin's own, now-empty upload folders on uninstall, where WP_Filesystem may need FTP details.
+	}
+	@rmdir( $usmd_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- removing this plugin's own, now-empty upload folders on uninstall, where WP_Filesystem may need FTP details.
+}
+
+// Temporary data (cached lookups, one-time tokens): every transient this plugin made.
+$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( '_transient_usmd_' ) . '%', $wpdb->esc_like( '_transient_timeout_usmd_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- one-time cleanup on uninstall.

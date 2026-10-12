@@ -1,0 +1,20 @@
+/* Unstoppable Solutions brand: gold admin menu item (guide v1.1.0, "Admin Menu Branding"). */
+#adminmenu .toplevel_page_unstoppable-site-manager .wp-menu-name {
+	color: #f0b849;
+}
+
+#adminmenu .toplevel_page_unstoppable-site-manager:hover .wp-menu-name,
+#adminmenu .toplevel_page_unstoppable-site-manager.current .wp-menu-name,
+#adminmenu .toplevel_page_unstoppable-site-manager.wp-has-current-submenu .wp-menu-name {
+	color: #fff;
+}
+
+#adminmenu .toplevel_page_unstoppable-site-manager .wp-menu-image:before {
+	color: #f0b849;
+}
+
+#adminmenu .toplevel_page_unstoppable-site-manager:hover .wp-menu-image:before,
+#adminmenu .toplevel_page_unstoppable-site-manager.current .wp-menu-image:before,
+#adminmenu .toplevel_page_unstoppable-site-manager.wp-has-current-submenu .wp-menu-image:before {
+	color: #fff;
+}
