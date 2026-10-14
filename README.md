@@ -2,7 +2,7 @@
 
 Manage all your clients' WordPress sites from your own WordPress site: updates, plugins, health, vulnerability checks, one-click sign-in and branded monthly client reports. Self-hosted, free, no outside service.
 
-Pair it with **Unstoppable Site Connector** on each client site.
+Pair it with **[Unstoppable Site Connector](https://wordpress.org/plugins/unstoppable-site-connector/)** (free on WordPress.org) on each client site.
 
 ## Features
 

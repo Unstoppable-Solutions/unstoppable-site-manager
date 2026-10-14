@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 5.8
 Tested up to: 7.1
-Stable tag: 0.14.0
+Stable tag: 0.14.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ Manage all your clients' WordPress sites from your own WordPress site: updates, 
 
 == Description ==
 
-Unstoppable Site Manager turns your own WordPress site into a dashboard for every client site you look after. Install it on your site, install the free **Unstoppable Site Connector** on each client site, and pair them with a one-time key.
+Unstoppable Site Manager turns your own WordPress site into a dashboard for every client site you look after. Install it on your site, install the free [Unstoppable Site Connector](https://wordpress.org/plugins/unstoppable-site-connector/) on each client site, and pair them with a one-time key.
 
 * **Sites at a glance** – a card for every site with a screenshot, pending updates, WordPress and PHP versions, SSL expiry and when it last reported. Tiles at the top count plugin, theme and WordPress updates across all sites. Star your most important sites to pin them to the top.
 * **Updates** – update one plugin on one site, everything on one site, or everything everywhere. Opening a site checks it for updates straight away.
@@ -49,7 +49,7 @@ Previously released as FM Dashboard. Installing Unstoppable Site Manager on a si
 == Installation ==
 
 1. Install and activate Unstoppable Site Manager on your own site.
-2. On each client site, install and activate Unstoppable Site Connector and go to Tools > Unstoppable Site Connector > Generate connection key.
+2. On each client site, install and activate [Unstoppable Site Connector](https://wordpress.org/plugins/unstoppable-site-connector/) (Plugins > Add New, search for it) and go to Tools > Unstoppable Site Connector > Generate connection key.
 3. Paste the key into Unstoppable Site Manager > Add Site.
 
 == Frequently Asked Questions ==
@@ -87,6 +87,9 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept on your site for up to 6 hours at an unguessable address so your client sites can download it, then deleted. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.14.1 =
+* Unstoppable Site Connector is now on WordPress.org: Add Site links to its listing and opens the client site's Add Plugins screen searched for it.
 
 = 0.14.0 =
 * Bulk connect (Add Site > Connect many sites at once): make a connector that knows this dashboard, install it on all your sites with MainWP, ManageWP or any bulk tool, and each site connects itself. Time-limited, site-limited and cancellable.

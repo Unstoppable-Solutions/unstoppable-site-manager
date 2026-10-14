@@ -748,7 +748,8 @@
 			if (!/^https?:\/\//i.test(raw)) { raw = 'https://' + raw; }
 			var base;
 			try { base = new URL(raw); } catch (err) { return; }
-			var url = base.origin + base.pathname.replace(/\/+$/, '') + '/wp-admin/plugin-install.php?tab=upload';
+			// Their Add Plugins screen, already searched for the connector on WordPress.org.
+			var url = base.origin + base.pathname.replace(/\/+$/, '') + '/wp-admin/plugin-install.php?tab=search&type=term&s=' + encodeURIComponent(openForm.dataset.slug || 'unstoppable-site-connector');
 			window.open(url, '_blank', 'noopener');
 		});
 	}

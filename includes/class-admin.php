@@ -639,7 +639,7 @@ final class USMD_Admin {
 		<div class="usmd-connector-box" id="usmd-connector">
 			<div class="usmd-connector-box-text">
 				<h2><?php esc_html_e( 'Step 1: put the connector on the client site', 'unstoppable-site-manager' ); ?></h2>
-				<p><?php esc_html_e( 'Download Unstoppable Site Connector, then upload it on the client site under Plugins > Add New > Upload Plugin and activate it.', 'unstoppable-site-manager' ); ?></p>
+				<p><?php esc_html_e( 'Install Unstoppable Site Connector on the client site, from WordPress.org (search for it under Plugins > Add New) or by uploading the ZIP, and activate it.', 'unstoppable-site-manager' ); ?></p>
 			</div>
 			<?php if ( $saved ) : ?>
 				<p class="usmd-connector-saved"><?php esc_html_e( 'Connector saved for future sites. Use the Download the connector button below for each new client site.', 'unstoppable-site-manager' ); ?></p>
@@ -655,15 +655,13 @@ final class USMD_Admin {
 				<?php endif; ?>
 				<a class="button<?php echo $zip ? '' : ' button-primary'; ?>" href="<?php echo esc_url( $page ); ?>" target="_blank" rel="noopener">
 					<?php
-					echo $zip
-						? esc_html__( 'Get the latest connector ↗', 'unstoppable-site-manager' )
-						: esc_html__( 'Download the connector ↗', 'unstoppable-site-manager' );
+					esc_html_e( 'View on WordPress.org ↗', 'unstoppable-site-manager' );
 					?>
 				</a>
 				<form class="usmd-connector-open" id="usmd-connector-open" data-slug="<?php echo esc_attr( $slug ); ?>">
 					<label for="usmd-client-url" class="screen-reader-text"><?php esc_html_e( 'Client site address', 'unstoppable-site-manager' ); ?></label>
 					<input type="text" inputmode="url" autocomplete="url" id="usmd-client-url" class="regular-text" placeholder="clientsite.com" required>
-					<button type="submit" class="button"><?php esc_html_e( 'Open their Upload Plugin screen ↗', 'unstoppable-site-manager' ); ?></button>
+					<button type="submit" class="button"><?php esc_html_e( 'Install it on their site ↗', 'unstoppable-site-manager' ); ?></button>
 				</form>
 			</div>
 			<?php
