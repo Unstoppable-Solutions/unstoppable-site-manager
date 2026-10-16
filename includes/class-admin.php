@@ -775,6 +775,7 @@ final class USMD_Admin {
 				</div>
 				<div class="usmd-site-actions">
 					<button type="button" class="button usmd-act" data-act="refresh" data-site="<?php echo (int) $site->id; ?>" data-reload="1">Refresh now</button>
+					<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-plugins&view=add&site=' . (int) $site->id ) ); ?>" title="<?php esc_attr_e( 'Install plugins on this site from WordPress.org, a ZIP file or a web address', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'Install plugins', 'unstoppable-site-manager' ); ?></a>
 					<a class="button" href="<?php echo esc_url( self::site_url( $site->id, array( 'view' => 'report' ) ) ); ?>">Client report</a>
 					<a class="button usmd-login" data-site="<?php echo (int) $site->id; ?>" href="<?php echo esc_url( trailingslashit( $site->url ) . 'wp-admin/' ); ?>" target="_blank" rel="noopener" title="<?php esc_attr_e( 'Open WP Admin in a new tab, already signed in', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'WP Admin', 'unstoppable-site-manager' ); ?> ↗</a>
 					<button type="button" class="button button-link-delete usmd-act" data-act="remove" data-site="<?php echo (int) $site->id; ?>">Remove</button>

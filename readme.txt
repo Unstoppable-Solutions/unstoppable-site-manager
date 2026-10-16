@@ -91,6 +91,7 @@ This plugin connects to the following services.
 == Changelog ==
 
 = 0.16.0 =
+* Site page: Install plugins button opens Add plugin with just that site selected.
 * Fix: typing in the Client box on a site page while the page was checking the site no longer gets wiped.
 * Clients: group sites under the client they belong to (Unstoppable Site Manager > Clients, or the Client box on a site page).
 * Pick a client on the Sites screen to see, refresh and update just their sites; the tiles count only their sites too.

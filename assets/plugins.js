@@ -83,6 +83,10 @@
 		if (fromUrl && pickClient.querySelector('option[value="' + fromUrl + '"]')) { pickClient.value = String(fromUrl); pickClient.dispatchEvent(new Event('change')); }
 	}
 
+	// Arriving from a site page (?site=ID): start with just that site.
+	var oneSite = parseInt(new URLSearchParams(window.location.search).get('site'), 10) || 0;
+	if (oneSite && P.sites.some(function (s) { return s.id === oneSite; })) { picked = {}; picked[oneSite] = true; }
+
 	if (P.view === 'add') { initAdd(); } else { initManage(); }
 	renderPicker();
 
