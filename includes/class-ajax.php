@@ -12,6 +12,22 @@ final class USMD_Ajax {
 		foreach ( array( 'refresh', 'update', 'remove', 'thumb', 'thumb_upload', 'thumb_failed', 'thumb_test', 'star', 'login' ) as $a ) {
 			add_action( 'wp_ajax_usmd_' . $a, array( __CLASS__, $a ) );
 		}
+		add_action( 'wp_ajax_usmd_nonce', array( __CLASS__, 'fresh_nonce' ) );
+	}
+
+	/**
+	 * A new security token for a dashboard page left open past the nonce lifetime
+	 * (12-24 hours), so it can carry on without a reload. Like core's
+	 * wp_ajax_rest_nonce(): only for a signed-in user allowed to use the dashboard,
+	 * and other sites can't read the answer (same-origin policy). Every action the
+	 * token is then used for still checks it with check_ajax_referer().
+	 */
+	public static function fresh_nonce() {
+		if ( ! current_user_can( USMD_Security::CAP ) ) {
+			wp_send_json_error( array( 'message' => 'Not allowed.' ), 403 );
+		}
+		nocache_headers();
+		wp_send_json_success( array( 'nonce' => wp_create_nonce( 'usmd' ) ) );
 	}
 
 	private static function site() {

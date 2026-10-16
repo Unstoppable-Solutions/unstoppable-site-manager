@@ -3,6 +3,61 @@
 	'use strict';
 	var cfg = window.USMD || {};
 
+	/* ---------- AJAX ----------
+	 * WordPress security tokens (nonces) expire after 12-24 hours. A dashboard left
+	 * open that long would get "-1" (HTTP 403) for every site, so on that answer we
+	 * fetch a fresh token once and repeat the request. Shared with plugins.js. */
+	var tokenRequest = null;
+	function freshNonce() {
+		if (!tokenRequest) {
+			var b = new FormData();
+			b.append('action', 'usmd_nonce');
+			tokenRequest = fetch(cfg.ajax, { method: 'POST', body: b, credentials: 'same-origin' })
+				.then(function (r) { return r.json().catch(function () { return null; }); })
+				.then(function (j) {
+					tokenRequest = null;
+					if (j && j.success && j.data && j.data.nonce) { cfg.nonce = j.data.nonce; return j.data.nonce; }
+					throw new Error('expired');
+				}, function (e) { tokenRequest = null; throw e; });
+		}
+		return tokenRequest;
+	}
+	var expiredShown = false;
+	function loginExpired() {
+		var msg = (cfg.i18n && cfg.i18n.expired) || 'Your WordPress login has expired. Reload this page and sign in again.';
+		if (!expiredShown) {
+			expiredShown = true;
+			var wrap = document.querySelector('.wrap') || document.body;
+			var n = document.createElement('div');
+			n.className = 'notice notice-error usmd-expired';
+			var p = document.createElement('p');
+			p.textContent = msg + ' ';
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'button';
+			btn.textContent = (cfg.i18n && cfg.i18n.reload) || 'Reload page';
+			btn.addEventListener('click', function () { window.location.reload(); });
+			p.appendChild(btn);
+			n.appendChild(p);
+			wrap.insertBefore(n, wrap.firstChild);
+		}
+		return new Response(JSON.stringify({ success: false, data: { message: msg, expired: true } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+	}
+	/** POST a FormData body that carries the nonce; renews an expired nonce once. */
+	function send(body) {
+		var go = function () { return fetch(cfg.ajax, { method: 'POST', body: body, credentials: 'same-origin' }); };
+		return go().then(function (r) {
+			// 403 "-1": the nonce expired. 400 "0": signed out (no AJAX action for visitors).
+			if (r.status !== 403 && r.status !== 400) { return r; }
+			return r.clone().text().then(function (t) {
+				t = t.trim();
+				if (!((r.status === 403 && t === '-1') || (r.status === 400 && t === '0'))) { return r; }
+				return freshNonce().then(function (n) { body.set('nonce', n); return go(); }, loginExpired);
+			});
+		});
+	}
+	window.USMDSend = send;
+
 	function post(action, data) {
 		var body = new FormData();
 		body.append('action', 'usmd_' + action);
@@ -11,7 +66,7 @@
 			var v = data[k];
 			if (Array.isArray(v)) { v.forEach(function (x) { body.append(k + '[]', x); }); } else { body.append(k, v); }
 		});
-		return fetch(cfg.ajax, { method: 'POST', body: body, credentials: 'same-origin' })
+		return send(body)
 			.then(function (r) { return r.json().catch(function () { return { success: false, data: { message: 'HTTP ' + r.status + ' (not JSON)' } }; }); })
 			.catch(function (e) { return { success: false, data: { message: e.message } }; });
 	}
@@ -551,7 +606,7 @@
 					body.append('nonce', cfg.nonce);
 					body.append('site', el.dataset.id);
 					body.append('image', blob, 'screenshot.' + (blob.type.split('/')[1] || 'jpg'));
-					return fetch(cfg.ajax, { method: 'POST', body: body, credentials: 'same-origin' })
+					return send(body)
 						.then(function (r) { return r.json(); })
 						.then(function (j) {
 							if (j.success && j.data.url) { return { state: 'ok', url: j.data.url, card: j.data.card }; }

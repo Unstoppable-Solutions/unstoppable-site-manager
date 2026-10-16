@@ -55,6 +55,8 @@ final class USMD_Admin {
 				'nonce' => wp_create_nonce( 'usmd' ),
 				'grid'  => admin_url( 'admin.php?page=unstoppable-site-manager' ),
 				'i18n'  => array(
+					'expired'     => __( 'Your WordPress login has expired. Reload this page and sign in again.', 'unstoppable-site-manager' ),
+					'reload'      => __( 'Reload page', 'unstoppable-site-manager' ),
 					'signingIn'   => __( 'Signing in…', 'unstoppable-site-manager' ),
 					/* translators: %s: site name. */
 					'signingInTo' => __( 'Signing in to %s…', 'unstoppable-site-manager' ),

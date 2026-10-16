@@ -23,7 +23,7 @@
 			if (Array.isArray(v)) { v.forEach(function (x) { body.append(k + '[]', x); }); } else { body.append(k, v); }
 		});
 		if (file) { body.append(file.field, file.blob, file.name); }
-		return fetch(C.ajax, { method: 'POST', body: body, credentials: 'same-origin' })
+		return (window.USMDSend ? window.USMDSend(body) : fetch(C.ajax, { method: 'POST', body: body, credentials: 'same-origin' }))
 			.then(function (r) { return r.json().catch(function () { return { success: false, data: { message: 'HTTP ' + r.status + ' (the server did not answer with JSON)' } }; }); })
 			.catch(function (e) { return { success: false, data: { message: e.message } }; });
 	}
