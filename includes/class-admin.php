@@ -494,6 +494,7 @@ final class USMD_Admin {
 							<?php endif; ?>
 							<?php if ( $site->client_email ) : ?>
 								<?php echo esc_html( $site->client_name ? $site->client_name : '' ); ?><?php echo $site->client_name ? '<br>' : ''; ?><span class="usmd-muted"><?php echo esc_html( $site->client_email ); ?></span>
+								<br><a class="usmd-report-edit" href="<?php echo esc_url( self::site_url( $site->id ) . '#usmd-client' ); ?>"><?php esc_html_e( 'Edit', 'unstoppable-site-manager' ); ?></a>
 							<?php else : ?>
 								<a href="<?php echo esc_url( self::site_url( $site->id ) . '#usmd-client' ); ?>"><?php esc_html_e( 'Add email', 'unstoppable-site-manager' ); ?></a>
 							<?php endif; ?>
