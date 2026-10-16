@@ -201,6 +201,18 @@ final class USMD_Sites {
 				$wpdb->update( self::t(), array( 'api' => $api ), array( 'id' => (int) $id ) );
 			}
 		}
+		// The site switched to https (or added/removed www): keep its address current.
+		$home = isset( $status['site']['home'] ) ? untrailingslashit( esc_url_raw( (string) $status['site']['home'] ) ) : '';
+		if ( $home ) {
+			$site  = isset( $site ) ? $site : self::get( $id );
+			$plain = static function ( $u ) {
+				$p = wp_parse_url( strtolower( (string) $u ) );
+				return preg_replace( '/^www\./', '', isset( $p['host'] ) ? $p['host'] : '' ) . ( isset( $p['port'] ) ? ':' . $p['port'] : '' ) . untrailingslashit( isset( $p['path'] ) ? $p['path'] : '' );
+			};
+			if ( $site && $site->url !== $home && $plain( $site->url ) === $plain( $home ) ) {
+				$wpdb->update( self::t(), array( 'url' => $home ), array( 'id' => (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+			}
+		}
 		USMD_Vulns::schedule( $id );
 		// An empty name falls back to the URL.
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET name = url WHERE id = %d AND name = ''", self::t(), (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
