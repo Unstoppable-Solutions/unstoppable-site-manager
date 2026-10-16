@@ -472,11 +472,29 @@
 			if (!fresh || !current) { window.location.reload(); return; }
 			var oldShot = current.querySelector('.usmd-shot-panel'), newShot = fresh.querySelector('.usmd-shot-panel');
 			if (oldShot && newShot) { newShot.replaceWith(oldShot); }
+			// Keep any form being filled in (client, report email…) so typing isn't wiped.
+			current.querySelectorAll('form').forEach(function (f) {
+				if (f.dataset.dirty !== '1' && !f.contains(document.activeElement)) { return; }
+				var act = f.querySelector('input[name="action"]');
+				if (!act) { return; }
+				var twin = fresh.querySelector('form input[name="action"][value="' + act.value + '"]');
+				if (twin && twin.form) { twin.form.replaceWith(f); }
+			});
 			current.replaceWith(fresh);
 			initSitePage();
 			if (message) { siteStatus(message.text, message.kind); }
 		}).catch(function () { window.location.reload(); });
 	}
+
+	/* Remember which site-page forms have been typed in. */
+	document.addEventListener('input', function (e) {
+		var f = e.target.closest && e.target.closest('.usmd-site form');
+		if (f) { f.dataset.dirty = '1'; }
+	});
+	document.addEventListener('change', function (e) {
+		var f = e.target.closest && e.target.closest('.usmd-site form');
+		if (f) { f.dataset.dirty = '1'; }
+	});
 
 	var sitePageBusy = false;
 	function refreshSitePage() {
