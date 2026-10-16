@@ -6,7 +6,7 @@ foreach ( array( 'usmd_sites', 'usmd_activity', 'usmd_files', 'usmd_clients' ) a
 	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . $usmd_table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- removing this plugin's own tables on uninstall.
 }
 
-foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk' ) as $usmd_opt ) {
+foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk', 'usmd_branding_refused' ) as $usmd_opt ) {
 	delete_option( $usmd_opt );
 }
 wp_clear_scheduled_hook( 'usmd_sync_tick' );
@@ -15,6 +15,7 @@ if ( function_exists( 'wp_unschedule_hook' ) ) {
 	wp_unschedule_hook( 'usmd_sync_site' );
 	wp_unschedule_hook( 'usmd_thumb' );
 	wp_unschedule_hook( 'usmd_vuln_site' );
+	wp_unschedule_hook( 'usmd_branding_site' );
 }
 
 // Cached screenshots, and folders older versions used for plugin packages.

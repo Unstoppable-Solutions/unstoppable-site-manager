@@ -24,12 +24,22 @@ final class USMD_Clients {
 		'report_from_name'  => 'text',
 		'report_from_email' => 'email',
 		'report_reply_to'   => 'email',
+		'footer_text'       => 'text',
+		'footer_url'        => 'url',
 	);
 
 	public static function hooks() {
 		add_action( 'admin_post_usmd_client_save', array( __CLASS__, 'handle_save' ) );
 		add_action( 'admin_post_usmd_client_delete', array( __CLASS__, 'handle_delete' ) );
 		add_action( 'admin_post_usmd_site_client', array( __CLASS__, 'handle_site_client' ) );
+	}
+
+	/** @var object[]|null Clients loaded in this request. */
+	private static $cache = null;
+
+	/** Forget the loaded clients after a change. */
+	public static function flush() {
+		self::$cache = null;
 	}
 
 	public static function table() {
@@ -42,9 +52,8 @@ final class USMD_Clients {
 	/** @return object[] Every client, by name, each with ->settings (array) and ->sites (count). */
 	public static function all() {
 		global $wpdb;
-		static $cache = null;
-		if ( null !== $cache ) {
-			return $cache;
+		if ( null !== self::$cache ) {
+			return self::$cache;
 		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 		$rows   = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY name ASC', self::table() ) );
@@ -57,7 +66,7 @@ final class USMD_Clients {
 			$r->settings = self::decode( $r->settings );
 			$r->sites    = isset( $counts[ (int) $r->id ] ) ? $counts[ (int) $r->id ] : 0;
 		}
-		$cache = $rows;
+		self::$cache = $rows;
 		return $rows;
 	}
 
@@ -131,6 +140,7 @@ final class USMD_Clients {
 				$wpdb->update( USMD_Sites::t(), array( 'client_id' => (int) $client_id ), array( 'id' => $sid ), array( '%d' ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 			}
 		}
+		self::flush();
 	}
 
 	private static function guard( $action ) {
@@ -175,6 +185,7 @@ final class USMD_Clients {
 			$id = (int) $wpdb->insert_id;
 		}
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery
+		self::flush();
 		if ( isset( $_POST['sites_shown'] ) ) {
 			$chosen = isset( $_POST['sites'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['sites'] ) ) : array();
 			$was    = array();
@@ -187,6 +198,7 @@ final class USMD_Clients {
 			self::assign( $chosen, $id );
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		USMD_Branding::queue_all(); // Moved sites or new footer text: update the client sites.
 		wp_safe_redirect( self::page_url( array( 'client' => $id, 'msg' => 'saved' ) ) );
 		exit;
 	}
@@ -203,6 +215,8 @@ final class USMD_Clients {
 			$wpdb->update( USMD_Sites::t(), array( 'client_id' => 0 ), array( 'client_id' => $id ), array( '%d' ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 			$wpdb->delete( self::table(), array( 'id' => $id ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 		}
+		self::flush();
+		USMD_Branding::queue_all();
 		wp_safe_redirect( self::page_url( array( 'msg' => 'deleted' ) ) );
 		exit;
 	}
@@ -229,10 +243,12 @@ final class USMD_Clients {
 				)
 			);
 			$cid = (int) $wpdb->insert_id;
+			self::flush();
 		} elseif ( $cid && ! self::get( $cid ) ) {
 			$cid = 0;
 		}
 		self::assign( array( $site->id ), $cid );
+		USMD_Branding::queue_all();
 		wp_safe_redirect( USMD_Admin::site_url( $site->id, array( 'client' => 'saved' ) ) . '#usmd-client' );
 		exit;
 	}
@@ -392,6 +408,14 @@ final class USMD_Clients {
 					<td><input id="usmd-cl-fromemail" name="o[report_from_email]" type="email" class="regular-text" value="<?php echo esc_attr( $field( 'report_from_email' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_from_email'] ? $def['report_from_email'] : USMD_Admin::agency_email() ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-reply"><?php esc_html_e( 'Reply-To', 'unstoppable-site-manager' ); ?></label></th>
 					<td><input id="usmd-cl-reply" name="o[report_reply_to]" type="email" class="regular-text" value="<?php echo esc_attr( $field( 'report_reply_to' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_reply_to'] ); ?>"></td></tr>
+			</table>
+			<h2><?php esc_html_e( 'Admin footer on this client\'s sites', 'unstoppable-site-manager' ); ?></h2>
+			<p class="usmd-muted"><?php esc_html_e( 'Replaces "Thank you for creating with WordPress" at the bottom of their admin screens (never the public site). Empty uses Settings.', 'unstoppable-site-manager' ); ?></p>
+			<table class="form-table" role="presentation">
+				<tr><th><label for="usmd-cl-ftext"><?php esc_html_e( 'Footer text', 'unstoppable-site-manager' ); ?></label></th>
+					<td><input id="usmd-cl-ftext" name="o[footer_text]" class="regular-text" maxlength="120" value="<?php echo esc_attr( $field( 'footer_text' ) ); ?>" placeholder="<?php echo esc_attr( $def['footer_text'] ? $def['footer_text'] : __( 'Off in Settings', 'unstoppable-site-manager' ) ); ?>"></td></tr>
+				<tr><th><label for="usmd-cl-furl"><?php esc_html_e( 'Footer link', 'unstoppable-site-manager' ); ?></label></th>
+					<td><input id="usmd-cl-furl" name="o[footer_url]" type="url" class="regular-text" value="<?php echo esc_attr( $field( 'footer_url' ) ); ?>" placeholder="<?php echo esc_attr( $def['footer_url'] ); ?>"></td></tr>
 			</table>
 			<?php submit_button( $c ? __( 'Save client', 'unstoppable-site-manager' ) : __( 'Add client', 'unstoppable-site-manager' ) ); ?>
 		</form>

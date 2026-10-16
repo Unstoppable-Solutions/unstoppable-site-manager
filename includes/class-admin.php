@@ -108,6 +108,8 @@ final class USMD_Admin {
 				'agency_email'      => '',
 				'thumb_provider' => 'off', // Opt-in: a screenshot service receives each client site's address.
 				'thumb_template' => '',
+				'footer_text'    => '', // Admin footer branding on client sites; empty = off.
+				'footer_url'     => '',
 			)
 		);
 	}
@@ -408,7 +410,11 @@ final class USMD_Admin {
 					<?php submit_button( __( 'Set', 'unstoppable-site-manager' ), 'secondary', 'submit', false ); ?>
 				</div>
 				<?php if ( $site->client_id && USMD_Clients::get( $site->client_id ) ) : ?>
-					<p class="usmd-muted"><a href="<?php echo esc_url( USMD_Clients::page_url( array( 'client' => (int) $site->client_id ) ) ); ?>"><?php esc_html_e( 'Edit this client and its report branding', 'unstoppable-site-manager' ); ?></a></p>
+					<p class="usmd-muted"><a href="<?php echo esc_url( USMD_Clients::page_url( array( 'client' => (int) $site->client_id ) ) ); ?>"><?php esc_html_e( 'Edit this client and its branding', 'unstoppable-site-manager' ); ?></a></p>
+				<?php endif; ?>
+				<?php $brand_line = USMD_Branding::describe( $site ); ?>
+				<?php if ( $brand_line ) : ?>
+					<p class="usmd-muted usmd-brand-line"><?php echo esc_html( $brand_line ); ?></p>
 				<?php endif; ?>
 			</form>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-client-form">
@@ -1085,6 +1091,17 @@ final class USMD_Admin {
 						</p>
 					</td></tr>
 				</table>
+				<h2 id="usmd-branding-settings"><?php esc_html_e( 'Client site admin footer', 'unstoppable-site-manager' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><label for="usmd-footer-text"><?php esc_html_e( 'Footer text', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-footer-text" name="footer_text" class="regular-text" maxlength="120" value="<?php echo esc_attr( $s['footer_text'] ); ?>" placeholder="<?php echo esc_attr( sprintf( /* translators: %s: agency name. */ __( 'Website care by %s', 'unstoppable-site-manager' ), $s['agency_name'] ) ); ?>">
+						<p class="description"><?php esc_html_e( 'Shown at the bottom of your client sites\' admin screens instead of "Thank you for creating with WordPress". Only in wp-admin, never on the public site. Leave empty to keep the WordPress text. Needs Unstoppable Site Connector 0.7.0 or newer; each site\'s administrators can switch it off on their side. Clients can have their own text on the Clients screen.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+					<tr><th><label for="usmd-footer-url"><?php esc_html_e( 'Footer link', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-footer-url" name="footer_url" type="url" class="regular-text" value="<?php echo esc_attr( $s['footer_url'] ); ?>" placeholder="https://youragency.com">
+						<p class="description"><?php esc_html_e( 'Optional. The footer text links here.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+				</table>
 				<h2>Screenshots</h2>
 				<table class="form-table" role="presentation">
 					<tr><th>Screenshot service</th><td>
@@ -1135,6 +1152,8 @@ final class USMD_Admin {
 				'agency_email'      => isset( $_POST['agency_email'] ) ? sanitize_email( wp_unslash( $_POST['agency_email'] ) ) : '',
 				'thumb_provider' => isset( $_POST['thumb_provider'] ) && in_array( $_POST['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? sanitize_key( $_POST['thumb_provider'] ) : 'off',
 				'thumb_template' => isset( $_POST['thumb_template'] ) ? esc_url_raw( str_replace( '{url}', 'USMDURLTOKEN', sanitize_text_field( wp_unslash( $_POST['thumb_template'] ) ) ) ) : '',
+				'footer_text'    => isset( $_POST['footer_text'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['footer_text'] ) ), 0, 120 ) : '',
+				'footer_url'     => isset( $_POST['footer_url'] ) ? esc_url_raw( wp_unslash( $_POST['footer_url'] ), array( 'https', 'http' ) ) : '',
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.
@@ -1150,6 +1169,7 @@ final class USMD_Admin {
 				}
 			}
 		}
+		USMD_Branding::queue_all(); // Send changed admin footer branding to the sites it affects.
 		wp_safe_redirect( admin_url( 'admin.php?page=usmd-settings&saved=1' ) );
 		exit;
 	}

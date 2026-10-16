@@ -170,7 +170,7 @@ final class USMD_Sites {
 		return (int) $wpdb->insert_id;
 	}
 
-	public static function store_status( $id, array $status ) {
+	public static function store_status( $id, array $status, $check_branding = true ) {
 		global $wpdb;
 		$sum = isset( $status['summary'] ) ? $status['summary'] : array();
 		$wpdb->update(
@@ -204,6 +204,9 @@ final class USMD_Sites {
 		USMD_Vulns::schedule( $id );
 		// An empty name falls back to the URL.
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET name = url WHERE id = %d AND name = ''", self::t(), (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		if ( $check_branding ) {
+			USMD_Branding::check( $id, $status );
+		}
 	}
 
 	/** Clear "errors" that were really refused jobs, not connection problems. */
