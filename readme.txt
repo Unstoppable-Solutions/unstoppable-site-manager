@@ -95,6 +95,7 @@ This plugin connects to the following services.
 * Pick a client on the Sites screen to see, refresh and update just their sites; the tiles count only their sites too.
 * Pick a client's sites in one click on Plugins and Add plugin.
 * Per-client report branding: agency name, logo, colour, introduction, contact line, email subject and sender. Empty fields use Settings.
+* List view on the Sites screen (the list button next to S, M, L): one row per site, no screenshots. Remembered in your browser.
 * Client site admin footer: your name and link at the bottom of client sites' admin screens instead of "Thank you for creating with WordPress" (Settings, or per client). Needs Unstoppable Site Connector 0.7.0; never shown on the public site, and each site can switch it off.
 
 = 0.15.1 =

@@ -545,9 +545,9 @@
 	/* ---------- card size (remembered in this browser) ---------- */
 	var grid = document.getElementById('usmd-grid');
 	function setSize(size) {
-		if (!grid || ['s', 'm', 'l'].indexOf(size) === -1) { return; }
+		if (!grid || ['s', 'm', 'l', 'list'].indexOf(size) === -1) { return; }
 		document.querySelectorAll('.usmd-grid').forEach(function (g) {
-			g.classList.remove('usmd-size-s', 'usmd-size-m', 'usmd-size-l');
+			g.classList.remove('usmd-size-s', 'usmd-size-m', 'usmd-size-l', 'usmd-size-list');
 			g.classList.add('usmd-size-' + size);
 		});
 		document.querySelectorAll('.usmd-sizes .button').forEach(function (b) { b.classList.toggle('is-active', b.dataset.size === size); });

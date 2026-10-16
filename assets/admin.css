@@ -17,7 +17,7 @@
 .usmd-stat.is-bad strong { color: var(--usmd-bad); }
 .usmd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
 .usmd-filters .button.is-active { background: #2271b1; border-color: #2271b1; color: #fff; }
-.usmd-bulk { margin-left: auto; display: flex; gap: 8px; }
+.usmd-bulk { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; }
 /* progress panel: one site at a time */
 .usmd-progress { background: #fff; border: 1px solid var(--usmd-line); border-left: 4px solid #2271b1; border-radius: 4px; padding: 12px 16px; margin: 0 0 14px; }
 .usmd-progress[hidden] { display: none; }
@@ -554,3 +554,25 @@
 .usmd-cl-delete { margin-top: 8px; }
 #usmd-pick-client { margin-bottom: 6px; }
 .usmd-cl-color { width: 8em; }
+
+/* List view: one row per site, no screenshots (same cards, laid out as rows) */
+.usmd-sizes .button .dashicons { font-size: 16px; width: 16px; height: 16px; vertical-align: text-bottom; }
+.usmd-grid.usmd-size-list { display: flex; flex-direction: column; gap: 0; background: #fff; border: 1px solid var(--usmd-line); border-radius: 4px; overflow: hidden; }
+.usmd-size-list .usmd-card { flex-direction: row; align-items: stretch; border: 0; border-bottom: 1px solid var(--usmd-line); border-left: 3px solid var(--usmd-ok); border-radius: 0; }
+.usmd-size-list .usmd-card:last-child { border-bottom: 0; }
+.usmd-size-list .usmd-card[data-updates]:not([data-updates="0"]) { border-left-color: #dba617; }
+.usmd-size-list .usmd-card.is-problem { border-left-color: var(--usmd-bad); }
+.usmd-size-list .usmd-card-thumb, .usmd-size-list .usmd-retake { display: none; }
+.usmd-size-list .usmd-star { position: static; flex: none; align-self: center; margin-left: 8px; box-shadow: none; background: transparent; opacity: 1; }
+.usmd-size-list .usmd-star[aria-pressed="false"] { color: #dcdcde; }
+.usmd-size-list .usmd-card-body { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 2px; padding: 7px 12px 7px 6px; }
+.usmd-size-list .usmd-card-head { flex: 0 1 260px; justify-content: flex-start; }
+.usmd-size-list .usmd-card-url { flex: 0 1 190px; font-size: 12px; }
+.usmd-size-list .usmd-card-client { flex: none; margin-top: 0; }
+.usmd-size-list .usmd-card-meta { flex: 1 1 260px; margin: 0; font-size: 12px; }
+.usmd-size-list .usmd-card-actions { flex: none; margin: 0 0 0 auto; padding-top: 0; }
+.usmd-size-list .usmd-card-error, .usmd-size-list .usmd-card-vuln, .usmd-size-list .usmd-connector-old { flex-basis: 100%; order: 10; margin: 0; }
+@media (max-width: 782px) {
+	.usmd-size-list .usmd-card-head, .usmd-size-list .usmd-card-url { flex-basis: 100%; }
+	.usmd-size-list .usmd-card-actions { margin-left: 0; }
+}

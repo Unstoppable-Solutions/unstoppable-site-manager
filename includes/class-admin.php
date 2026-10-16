@@ -625,6 +625,7 @@ final class USMD_Admin {
 					<button type="button" class="button" data-size="s" title="Small cards">S</button>
 					<button type="button" class="button" data-size="m" title="Medium cards">M</button>
 					<button type="button" class="button" data-size="l" title="Large cards">L</button>
+					<button type="button" class="button" data-size="list" title="<?php esc_attr_e( 'List: one row per site, no screenshots', 'unstoppable-site-manager' ); ?>"><span class="dashicons dashicons-list-view" aria-hidden="true"></span><span class="screen-reader-text"><?php esc_html_e( 'List', 'unstoppable-site-manager' ); ?></span></button>
 				</div>
 				<div class="usmd-bulk">
 					<?php if ( 'off' !== USMD_Thumbs::provider() ) : ?>
