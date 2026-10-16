@@ -538,3 +538,19 @@
 .usmd-bc-log li.is-ok strong { color: #1a7f4b; }
 .usmd-bc-log li.is-bad strong { color: #b32d2e; }
 .usmd-bc-check form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Clients */
+.usmd-card-client { display: inline-block; max-width: 100%; margin-top: 2px; padding: 1px 7px; border-radius: 10px; background: var(--usmd-tint, #eef3fb); color: #2c4a73; font-size: 11px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#usmd-client-filter { max-width: 220px; }
+.usmd-site-client { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--usmd-line); }
+.usmd-site-client label { display: block; font-weight: 600; margin-bottom: 4px; }
+.usmd-site-client-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.usmd-site-client-row select, .usmd-site-client-row .usmd-new-client { flex: 1 1 140px; min-width: 0; }
+.usmd-site-client p { margin: 6px 0 0; }
+.usmd-clients-table { max-width: 900px; margin-top: 12px; }
+.usmd-clients .usmd-empty { background: #fff; border: 1px solid var(--usmd-line); border-radius: 6px; padding: 16px 20px; max-width: 600px; }
+.usmd-cl-sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; max-height: 320px; overflow: auto; padding: 8px 10px; background: #fff; border: 1px solid var(--usmd-line); border-radius: 4px; max-width: 900px; }
+.usmd-cl-sites label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.usmd-cl-delete { margin-top: 8px; }
+#usmd-pick-client { margin-bottom: 6px; }
+.usmd-cl-color { width: 8em; }

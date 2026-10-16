@@ -22,6 +22,7 @@ final class USMD_Admin {
 	public static function menu() {
 		add_menu_page( __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ), 'dashicons-networking' );
 		add_submenu_page( self::SLUG, __( 'Sites', 'unstoppable-site-manager' ), __( 'Sites', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ) );
+		add_submenu_page( self::SLUG, __( 'Clients', 'unstoppable-site-manager' ), __( 'Clients', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-clients', array( 'USMD_Clients', 'page' ) );
 		add_submenu_page( self::SLUG, __( 'Add Site', 'unstoppable-site-manager' ), __( 'Add Site', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-add', array( __CLASS__, 'page_add' ) );
 		add_submenu_page( self::SLUG, __( 'Client reports', 'unstoppable-site-manager' ), __( 'Reports', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-reports', array( __CLASS__, 'page_reports' ) );
 		add_submenu_page( self::SLUG, __( 'Settings', 'unstoppable-site-manager' ), __( 'Settings', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-settings', array( __CLASS__, 'page_settings' ) );
@@ -168,6 +169,8 @@ final class USMD_Admin {
 		$vulns     = USMD_Vulns::enabled() ? USMD_Vulns::count( $site->id ) : 0;
 		$conn_ver  = USMD_Sites::connector_version( $site );
 		$conn_old  = USMD_Sites::connector_state( $site );
+		$clients   = USMD_Clients::names();
+		$client    = ( $site->client_id && isset( $clients[ (int) $site->client_id ] ) ) ? $clients[ (int) $site->client_id ] : '';
 
 		ob_start();
 		?>
@@ -184,7 +187,8 @@ final class USMD_Admin {
 			data-core-update="<?php echo $site->core_update ? 1 : 0; ?>"
 			data-connector="<?php echo esc_attr( $conn_old ); ?>"
 			data-vulns="<?php echo (int) $vulns; ?>"
-			data-search="<?php echo esc_attr( strtolower( $site->name . ' ' . $site->url ) ); ?>"
+			data-client="<?php echo $client ? (int) $site->client_id : 0; ?>"
+			data-search="<?php echo esc_attr( strtolower( $site->name . ' ' . $site->url . ' ' . $client ) ); ?>"
 			<?php if ( USMD_Thumbs::browser_mode() ) : ?>
 				data-thumb-src="<?php echo esc_url( USMD_Thumbs::mshots_url( $site->url ) ); ?>"
 				data-thumb-due="<?php echo $thumb_due ? 1 : 0; ?>"
@@ -222,6 +226,9 @@ final class USMD_Admin {
 					<?php endif; ?>
 				</div>
 				<a class="usmd-card-url" href="<?php echo esc_url( $site->url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $host ); ?></a>
+				<?php if ( $client ) : ?>
+					<span class="usmd-card-client" title="<?php esc_attr_e( 'Client', 'unstoppable-site-manager' ); ?>"><?php echo esc_html( $client ); ?></span>
+				<?php endif; ?>
 				<ul class="usmd-card-meta">
 					<li>WP <?php echo esc_html( $site->wp_version ? $site->wp_version : '?' ); ?></li>
 					<li>PHP <?php echo esc_html( $site->php_version ? $site->php_version : '?' ); ?></li>
@@ -390,6 +397,20 @@ final class USMD_Admin {
 		?>
 		<div class="usmd-panel usmd-client" id="usmd-client">
 			<h2><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?><?php if ( $saved ) : ?> <span class="usmd-saved"><?php esc_html_e( 'Saved', 'unstoppable-site-manager' ); ?></span><?php endif; ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-site-client">
+				<input type="hidden" name="action" value="usmd_site_client">
+				<input type="hidden" name="site" value="<?php echo (int) $site->id; ?>">
+				<?php wp_nonce_field( 'usmd_site_client' ); ?>
+				<label for="usmd-site-client-<?php echo (int) $site->id; ?>"><?php esc_html_e( 'Belongs to', 'unstoppable-site-manager' ); ?></label>
+				<div class="usmd-site-client-row">
+					<?php echo USMD_Clients::select( 'client_id', (int) $site->client_id, __( 'No client', 'unstoppable-site-manager' ), ' id="usmd-site-client-' . (int) $site->id . '"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+					<input type="text" name="new_client" class="usmd-new-client" placeholder="<?php esc_attr_e( 'or new client name', 'unstoppable-site-manager' ); ?>" aria-label="<?php esc_attr_e( 'New client name', 'unstoppable-site-manager' ); ?>">
+					<?php submit_button( __( 'Set', 'unstoppable-site-manager' ), 'secondary', 'submit', false ); ?>
+				</div>
+				<?php if ( $site->client_id && USMD_Clients::get( $site->client_id ) ) : ?>
+					<p class="usmd-muted"><a href="<?php echo esc_url( USMD_Clients::page_url( array( 'client' => (int) $site->client_id ) ) ); ?>"><?php esc_html_e( 'Edit this client and its report branding', 'unstoppable-site-manager' ); ?></a></p>
+				<?php endif; ?>
+			</form>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-client-form">
 				<input type="hidden" name="action" value="usmd_client">
 				<input type="hidden" name="site" value="<?php echo (int) $site->id; ?>">
@@ -461,6 +482,10 @@ final class USMD_Admin {
 					<tr>
 						<td><a href="<?php echo esc_url( self::site_url( $site->id ) ); ?>"><strong><?php echo esc_html( $site->name ); ?></strong></a><br><span class="usmd-muted"><?php echo esc_html( (string) wp_parse_url( $site->url, PHP_URL_HOST ) ); ?></span></td>
 						<td>
+							<?php $cn = USMD_Clients::names(); ?>
+							<?php if ( $site->client_id && isset( $cn[ (int) $site->client_id ] ) ) : ?>
+								<a class="usmd-report-client" href="<?php echo esc_url( USMD_Clients::page_url( array( 'client' => (int) $site->client_id ) ) ); ?>"><strong><?php echo esc_html( $cn[ (int) $site->client_id ] ); ?></strong></a><br>
+							<?php endif; ?>
 							<?php if ( $site->client_email ) : ?>
 								<?php echo esc_html( $site->client_name ? $site->client_name : '' ); ?><?php echo $site->client_name ? '<br>' : ''; ?><span class="usmd-muted"><?php echo esc_html( $site->client_email ); ?></span>
 							<?php else : ?>
@@ -576,6 +601,14 @@ final class USMD_Admin {
 
 			<div class="usmd-toolbar">
 				<input type="search" id="usmd-search" placeholder="Search sites…" class="regular-text">
+				<?php if ( USMD_Clients::names() ) : ?>
+					<?php
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+					$pick = isset( $_GET['client'] ) ? absint( $_GET['client'] ) : 0;
+					?>
+					<label for="usmd-client-filter" class="screen-reader-text"><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?></label>
+					<?php echo USMD_Clients::select( 'client', $pick, __( 'All clients', 'unstoppable-site-manager' ), ' id="usmd-client-filter"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+				<?php endif; ?>
 				<div class="usmd-filters" role="group" aria-label="Filter sites">
 					<button type="button" class="button is-active" data-filter="all">All</button>
 					<button type="button" class="button" data-filter="updates">Needs updates</button>

@@ -299,10 +299,13 @@
 	/* ---------- grid filters ---------- */
 	var filter = 'all';
 	var search = document.getElementById('usmd-search');
+	var clientPick = document.getElementById('usmd-client-filter');
 	function applyFilter() {
 		var q = search ? search.value.trim().toLowerCase() : '';
+		var cl = clientPick ? clientPick.value : '0';
 		document.querySelectorAll('.usmd-card').forEach(function (c) {
 			var show = (!q || c.dataset.search.indexOf(q) !== -1) &&
+				(cl === '0' || c.dataset.client === cl) &&
 				(filter === 'all' ||
 				(filter === 'updates' && c.dataset.updates !== '0') ||
 				(filter === 'plugins' && c.dataset.pluginUpdates !== '0') ||
@@ -323,7 +326,9 @@
 		var box = document.getElementById('usmd-stats');
 		if (!box) { return; }
 		var t = { sites: 0, plugins: 0, pluginSites: 0, themes: 0, themeSites: 0, core: 0, errors: 0, conn: 0, connManual: 0, vulns: 0, vulnSites: 0 };
+		var cl = clientPick ? clientPick.value : '0';
 		document.querySelectorAll('.usmd-card').forEach(function (c) {
+			if (cl !== '0' && c.dataset.client !== cl) { return; } // Tiles count the chosen client's sites.
 			var p = parseInt(c.dataset.pluginUpdates, 10) || 0, th = parseInt(c.dataset.themeUpdates, 10) || 0;
 			t.sites++;
 			t.plugins += p; t.pluginSites += p ? 1 : 0;
@@ -373,6 +378,22 @@
 		allSection.querySelector('[data-count]').textContent = '(' + document.querySelectorAll('#usmd-grid .usmd-card:not([hidden])').length + ')';
 	}
 	if (search) { search.addEventListener('input', applyFilter); }
+	/* Client picker: Refresh all / Update all then work on just that client's sites. */
+	if (clientPick) {
+		clientPick.addEventListener('change', function () {
+			applyFilter();
+			try {
+				var u = new URL(window.location.href);
+				if (clientPick.value === '0') { u.searchParams.delete('client'); } else { u.searchParams.set('client', clientPick.value); }
+				window.history.replaceState(null, '', u.toString());
+			} catch (err) { /* old browser: the filter still works */ }
+		});
+		if (clientPick.value !== '0') { applyFilter(); }
+	}
+	/* Forms that ask before submitting (data-ask). */
+	document.querySelectorAll('form[data-ask]').forEach(function (f) {
+		f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.ask)) { e.preventDefault(); } });
+	});
 	function setFilter(f) {
 		filter = f;
 		document.querySelectorAll('.usmd-filters .button, .usmd-stat').forEach(function (x) { x.classList.toggle('is-active', x.dataset.filter === f && f !== 'all'); });

@@ -2,7 +2,7 @@
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 global $wpdb;
-foreach ( array( 'usmd_sites', 'usmd_activity', 'usmd_files' ) as $usmd_table ) {
+foreach ( array( 'usmd_sites', 'usmd_activity', 'usmd_files', 'usmd_clients' ) as $usmd_table ) {
 	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . $usmd_table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- removing this plugin's own tables on uninstall.
 }
 

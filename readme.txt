@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.15.1
+Stable tag: 0.16.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -89,6 +89,12 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.16.0 =
+* Clients: group sites under the client they belong to (Unstoppable Site Manager > Clients, or the Client box on a site page).
+* Pick a client on the Sites screen to see, refresh and update just their sites; the tiles count only their sites too.
+* Pick a client's sites in one click on Plugins and Add plugin.
+* Per-client report branding: agency name, logo, colour, introduction, contact line, email subject and sender. Empty fields use Settings.
 
 = 0.15.1 =
 * A dashboard page left open for a day no longer shows every site as failing: when WordPress's security token expires, the page gets a new one and carries on. If you have been signed out, it says so once instead.

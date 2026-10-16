@@ -3,7 +3,7 @@
  * Plugin Name: Unstoppable Site Manager
  * Plugin URI: https://unstoppablesolutions.app/plugins/unstoppable-site-manager
  * Description: Manage all your clients' WordPress sites from your own site: updates, plugins, health, SSL, one-click sign-in and monthly client reports. Pair it with Unstoppable Site Connector on each client site. Replaces FM Dashboard.
- * Version: 0.15.1
+ * Version: 0.16.0
  * Author: Unstoppable Solutions
  * Author URI: https://unstoppablesolutions.app
  * License: GPL-2.0-or-later
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'USMD_VERSION', '0.15.1' );
+define( 'USMD_VERSION', '0.16.0' );
 // The connector's WordPress.org slug, used for install links on the Add Site screen.
 define( 'USMD_CONNECTOR_SLUG', 'unstoppable-site-connector' );
 // Where people can read about and get the connector.
@@ -48,11 +48,12 @@ require_once USMD_DIR . 'includes/class-vulns.php';
 require_once USMD_DIR . 'includes/class-report-mail.php';
 require_once USMD_DIR . 'includes/class-work.php';
 require_once USMD_DIR . 'includes/class-bulk.php';
+require_once USMD_DIR . 'includes/class-clients.php';
 require_once USMD_DIR . 'includes/class-connector-zip.php';
 
 final class USMD_Plugin {
 
-	const DB_VERSION = 3;
+	const DB_VERSION = 4;
 
 	public static function init() {
 		add_action( 'rest_api_init', array( 'USMD_Receiver', 'register' ) );
@@ -61,6 +62,7 @@ final class USMD_Plugin {
 		USMD_Security::hooks();
 		USMD_Migrate::hooks();
 		USMD_Bulk::hooks();
+		USMD_Clients::hooks();
 		USMD_Vulns::hooks();
 		USMD_Report_Mail::hooks();
 		USMD_Sync::hooks();

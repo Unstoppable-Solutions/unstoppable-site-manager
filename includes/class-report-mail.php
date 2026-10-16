@@ -80,7 +80,7 @@ final class USMD_Report_Mail {
 		if ( ! $to ) {
 			return new WP_Error( 'usmd_no_email', __( 'Add the client\'s email address on the site page first.', 'unstoppable-site-manager' ) );
 		}
-		$s       = USMD_Admin::settings();
+		$s       = USMD_Clients::settings_for( $site );
 		$d       = USMD_Report::data( $site, $month );
 		$subject = strtr(
 			$s['report_subject'],
