@@ -20,7 +20,7 @@ final class USMD_Admin {
 	}
 
 	public static function menu() {
-		add_menu_page( __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ), 'dashicons-networking', 3 );
+		add_menu_page( __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ), 'dashicons-networking' );
 		add_submenu_page( self::SLUG, __( 'Sites', 'unstoppable-site-manager' ), __( 'Sites', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ) );
 		add_submenu_page( self::SLUG, __( 'Add Site', 'unstoppable-site-manager' ), __( 'Add Site', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-add', array( __CLASS__, 'page_add' ) );
 		add_submenu_page( self::SLUG, __( 'Client reports', 'unstoppable-site-manager' ), __( 'Reports', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-reports', array( __CLASS__, 'page_reports' ) );
@@ -103,7 +103,7 @@ final class USMD_Admin {
 				'report_reply_to'   => '',
 				'report_bcc_me'     => 1,
 				'agency_email'      => '',
-				'thumb_provider' => 'mshots',
+				'thumb_provider' => 'off', // Opt-in: a screenshot service receives each client site's address.
 				'thumb_template' => '',
 			)
 		);
@@ -274,7 +274,7 @@ final class USMD_Admin {
 			$url   = USMD_Sites::upload_url( $site );
 			/* translators: %s: connector version. */
 			$text  = sprintf( __( 'Connector %s: update by hand', 'unstoppable-site-manager' ), $label );
-			$title = __( 'This connector can\'t receive plugins from the dashboard. Opens the site\'s Upload Plugin screen: upload the new connector ZIP and choose "Replace current with uploaded". After this one update, connector updates can be pushed from here.', 'unstoppable-site-manager' );
+			$title = __( 'This connector can\'t receive plugins from the dashboard. Opens the site\'s Upload Plugin screen: upload the connector ZIP from WordPress.org and choose "Replace current with uploaded". After this one update, connector updates can be pushed from here.', 'unstoppable-site-manager' );
 			$attrs = ' target="_blank" rel="noopener"';
 		} else {
 			$url   = admin_url( 'admin.php?page=usmd-plugins&view=add' );
@@ -285,8 +285,8 @@ final class USMD_Admin {
 				/* translators: %s: connector version. */
 				: sprintf( __( 'Connector %s: update available', 'unstoppable-site-manager' ), $label );
 			$title = $old_name
-				? __( 'Drop the Unstoppable Site Connector ZIP on Plugins > Add plugin and install it on this site. It takes over the connection (no re-pairing) and removes FM Connector.', 'unstoppable-site-manager' )
-				: __( 'Drop the new connector ZIP on Plugins > Add plugin and install it on this site. It replaces the old copy and stays connected.', 'unstoppable-site-manager' );
+				? __( 'On Plugins > Add plugin, search WordPress.org for Unstoppable Site Connector and install it on this site. It takes over the connection (no re-pairing).', 'unstoppable-site-manager' )
+				: __( 'Update it like any other plugin (it is on WordPress.org), or install Unstoppable Site Connector from Plugins > Add plugin. It replaces the old copy and stays connected.', 'unstoppable-site-manager' );
 			$attrs = '';
 		}
 		printf(
@@ -630,84 +630,26 @@ final class USMD_Admin {
 	 * Plugins > Add New on the client's site already searched for it.
 	 */
 	public static function connector_box() {
-		$slug  = apply_filters( 'usmd_connector_slug', USMD_CONNECTOR_SLUG );
-		$page  = apply_filters( 'usmd_connector_page', USMD_CONNECTOR_PAGE );
-		$zip   = USMD_Connector_Zip::info();
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
-		$saved = isset( $_GET['connector'] );
+		$slug = apply_filters( 'usmd_connector_slug', USMD_CONNECTOR_SLUG );
+		$page = apply_filters( 'usmd_connector_page', USMD_CONNECTOR_PAGE );
 		?>
 		<div class="usmd-connector-box" id="usmd-connector">
 			<div class="usmd-connector-box-text">
 				<h2><?php esc_html_e( 'Step 1: put the connector on the client site', 'unstoppable-site-manager' ); ?></h2>
 				<p><?php esc_html_e( 'Install Unstoppable Site Connector on the client site, from WordPress.org (search for it under Plugins > Add New) or by uploading the ZIP, and activate it.', 'unstoppable-site-manager' ); ?></p>
 			</div>
-			<?php if ( $saved ) : ?>
-				<p class="usmd-connector-saved"><?php esc_html_e( 'Connector saved for future sites. Use the Download the connector button below for each new client site.', 'unstoppable-site-manager' ); ?></p>
-			<?php endif; ?>
 			<div class="usmd-connector-actions">
-				<?php if ( $zip ) : ?>
-					<a class="button button-primary" href="<?php echo esc_url( USMD_Connector_Zip::download_url() ); ?>">
-						<?php
-						/* translators: %s: version number. */
-						echo esc_html( sprintf( __( 'Download the connector (version %s)', 'unstoppable-site-manager' ), $zip['version'] ) );
-						?>
-					</a>
-				<?php endif; ?>
-				<a class="button<?php echo $zip ? '' : ' button-primary'; ?>" href="<?php echo esc_url( $page ); ?>" target="_blank" rel="noopener">
-					<?php
-					esc_html_e( 'View on WordPress.org ↗', 'unstoppable-site-manager' );
-					?>
+				<a class="button button-primary" href="<?php echo esc_url( USMD_Connector_Zip::download_url() ); ?>">
+					<?php esc_html_e( 'Download the connector ZIP', 'unstoppable-site-manager' ); ?>
+				</a>
+				<a class="button" href="<?php echo esc_url( $page ); ?>" target="_blank" rel="noopener">
+					<?php esc_html_e( 'View on WordPress.org ↗', 'unstoppable-site-manager' ); ?>
 				</a>
 				<form class="usmd-connector-open" id="usmd-connector-open" data-slug="<?php echo esc_attr( $slug ); ?>">
 					<label for="usmd-client-url" class="screen-reader-text"><?php esc_html_e( 'Client site address', 'unstoppable-site-manager' ); ?></label>
 					<input type="text" inputmode="url" autocomplete="url" id="usmd-client-url" class="regular-text" placeholder="clientsite.com" required>
 					<button type="submit" class="button"><?php esc_html_e( 'Install it on their site ↗', 'unstoppable-site-manager' ); ?></button>
 				</form>
-			</div>
-			<?php
-			$form = function ( $label ) {
-				?>
-				<form class="usmd-connector-save" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="usmd_connector_upload">
-					<?php wp_nonce_field( 'usmd_connector_upload' ); ?>
-					<label for="usmd-connector-file" class="screen-reader-text"><?php esc_html_e( 'Connector ZIP', 'unstoppable-site-manager' ); ?></label>
-					<input type="file" id="usmd-connector-file" name="zip" accept=".zip,application/zip" required>
-					<?php submit_button( $label, 'primary', 'submit', false, array( 'id' => 'usmd-connector-save' ) ); ?>
-					<p class="usmd-connector-nudge" id="usmd-connector-nudge" hidden><?php esc_html_e( 'File chosen. Now click the Save button to keep it.', 'unstoppable-site-manager' ); ?></p>
-				</form>
-				<?php
-			};
-			?>
-			<div class="usmd-connector-store<?php echo $zip ? ' has-copy' : ''; ?>">
-				<?php if ( $zip ) : ?>
-					<p class="usmd-connector-stored">
-						<span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>
-						<?php
-						echo esc_html(
-							sprintf(
-								/* translators: 1: version number, 2: date. */
-								__( 'Saved for future sites: version %1$s (saved %2$s). Use the Download button above for each new client site.', 'unstoppable-site-manager' ),
-								$zip['version'],
-								wp_date( get_option( 'date_format' ), (int) $zip['time'] )
-							)
-						);
-						?>
-					</p>
-					<details class="usmd-connector-upload">
-						<summary><?php esc_html_e( 'Save a newer version instead', 'unstoppable-site-manager' ); ?></summary>
-						<p class="usmd-muted"><?php esc_html_e( 'Choose the newer connector ZIP, then click Save. It replaces the saved copy. Pushing a newer connector to your sites from Plugins > Add plugin does this for you.', 'unstoppable-site-manager' ); ?></p>
-						<?php $form( __( 'Save newer version', 'unstoppable-site-manager' ) ); ?>
-					</details>
-				<?php else : ?>
-					<h3><?php esc_html_e( 'Save the connector here for future sites (one time)', 'unstoppable-site-manager' ); ?></h3>
-					<ol>
-						<li><?php esc_html_e( 'Click Download the connector above and save the ZIP file to your computer.', 'unstoppable-site-manager' ); ?></li>
-						<li><?php esc_html_e( 'Click Choose File below and pick that ZIP (unstoppable-site-connector-….zip).', 'unstoppable-site-manager' ); ?></li>
-						<li><?php esc_html_e( 'Click Save connector for future sites.', 'unstoppable-site-manager' ); ?></li>
-					</ol>
-					<?php $form( __( 'Save connector for future sites', 'unstoppable-site-manager' ) ); ?>
-					<p class="usmd-muted"><?php esc_html_e( 'After that, this box shows a Download button with the saved version, so you never have to go looking for the connector again. The file is kept on this dashboard only; nothing is sent to your client sites or any website.', 'unstoppable-site-manager' ); ?></p>
-				<?php endif; ?>
 			</div>
 		</div>
 		<?php
@@ -1116,7 +1058,7 @@ final class USMD_Admin {
 							<label><input type="radio" name="thumb_provider" value="custom" <?php checked( $s['thumb_provider'], 'custom' ); ?>> Another service (URL below)</label><br>
 							<label><input type="radio" name="thumb_provider" value="off" <?php checked( $s['thumb_provider'], 'off' ); ?>> Off</label>
 						</fieldset>
-						<p class="description">The service visits each client site's home page and takes the picture, so it only sees what a public visitor sees. Screenshots refresh weekly.</p>
+						<p class="description"><strong>Off unless you turn it on.</strong> When on, the address of each client site is sent to the service you choose (WordPress.com for mShots), which visits the home page and takes the picture, so it only sees what a public visitor sees. Screenshots refresh weekly. Nothing is sent while this is off.</p>
 						<p><button type="button" class="button" id="usmd-thumb-test" data-mshots="<?php echo esc_url( USMD_Thumbs::mshots_url( 'https://wordpress.org/' ) ); ?>">Test screenshot service</button> <span id="usmd-thumb-test-result" class="usmd-test-result"></span></p>
 					</td></tr>
 					<tr><th><label for="usmd-thumb-tpl">Service URL</label></th><td>
@@ -1156,7 +1098,7 @@ final class USMD_Admin {
 				'report_reply_to'   => isset( $_POST['report_reply_to'] ) ? sanitize_email( wp_unslash( $_POST['report_reply_to'] ) ) : '',
 				'report_bcc_me'     => empty( $_POST['report_bcc_me'] ) ? 0 : 1,
 				'agency_email'      => isset( $_POST['agency_email'] ) ? sanitize_email( wp_unslash( $_POST['agency_email'] ) ) : '',
-				'thumb_provider' => isset( $_POST['thumb_provider'] ) && in_array( $_POST['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? sanitize_key( $_POST['thumb_provider'] ) : 'mshots',
+				'thumb_provider' => isset( $_POST['thumb_provider'] ) && in_array( $_POST['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? sanitize_key( $_POST['thumb_provider'] ) : 'off',
 				'thumb_template' => isset( $_POST['thumb_template'] ) ? esc_url_raw( str_replace( '{url}', 'USMDURLTOKEN', sanitize_text_field( wp_unslash( $_POST['thumb_template'] ) ) ) ) : '',
 			)
 		);

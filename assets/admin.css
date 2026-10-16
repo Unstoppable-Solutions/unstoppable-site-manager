@@ -443,19 +443,6 @@
 /* Connector download on Add Site */
 .usmd-connector-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 8px; }
 .usmd-connector-actions .usmd-connector-open { margin-bottom: 0; }
-.usmd-connector-store { border-top: 1px solid var(--usmd-line); margin-top: 12px; padding-top: 12px; }
-.usmd-connector-store h3 { margin: 0 0 6px; font-size: 14px; }
-.usmd-connector-store ol { margin: 0 0 10px 20px; }
-.usmd-connector-store ol li { margin-bottom: 2px; }
-.usmd-connector-save { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
-.usmd-connector-box .usmd-connector-nudge { margin: 0; color: #b26200; font-weight: 600; flex-basis: 100%; }
-.usmd-connector-nudge[hidden] { display: none; }
-.usmd-connector-stored { display: flex; gap: 6px; align-items: flex-start; color: #1a7f4b; font-weight: 500; }
-.usmd-connector-stored .dashicons { flex: none; }
-.usmd-connector-upload { margin: 4px 0 10px; }
-.usmd-connector-upload summary { cursor: pointer; font-weight: 600; }
-.usmd-connector-upload p { margin: 6px 0; }
-.usmd-connector-saved { color: #1a7f4b; font-weight: 500; }
 
 /* Settings: logo picker */
 .usmd-logo-field { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }

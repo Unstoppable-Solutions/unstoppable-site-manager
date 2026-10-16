@@ -73,8 +73,7 @@ final class USMD_Migrate {
 
 	private static function count( $table ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- table name from $wpdb->prefix.
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- this plugin's or FM Dashboard's table.
 	}
 
 	/**
@@ -83,21 +82,29 @@ final class USMD_Migrate {
 	 */
 	private static function copy_table( $old, $new ) {
 		global $wpdb;
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $old ) ) !== $old ) {
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $old ) ) ) !== $old ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			return 0;
 		}
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- table names from $wpdb->prefix.
-		$sample_old = $wpdb->get_row( "SELECT * FROM {$old} LIMIT 1", ARRAY_A );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- one-time copy from FM Dashboard's tables into this plugin's own.
+		$sample_old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i LIMIT 1', $old ), ARRAY_A );
 		if ( ! $sample_old ) {
 			return 0;
 		}
-		$new_cols = $wpdb->get_col( "SHOW COLUMNS FROM {$new}" );
+		$new_cols = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $new ) );
 		$cols     = array_values( array_intersect( array_keys( $sample_old ), (array) $new_cols ) );
 		if ( ! $cols ) {
 			return 0;
 		}
-		$list = implode( ', ', $cols );
-		$wpdb->query( "INSERT INTO {$new} ({$list}) SELECT {$list} FROM {$old}" );
+		$keep = array_flip( $cols );
+		for ( $offset = 0; ; $offset += 500 ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i LIMIT %d OFFSET %d', $old, 500, $offset ), ARRAY_A );
+			if ( ! $rows ) {
+				break;
+			}
+			foreach ( $rows as $row ) {
+				$wpdb->insert( $new, array_intersect_key( $row, $keep ) );
+			}
+		}
 		// phpcs:enable
 		return self::count( $new );
 	}

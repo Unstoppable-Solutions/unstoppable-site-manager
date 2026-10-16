@@ -60,9 +60,8 @@ final class USMD_Work {
 
 	private static function row( $id, $site_id ) {
 		global $wpdb;
-		$t = $wpdb->prefix . 'usmd_activity';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- plugin's own table; name from $wpdb->prefix.
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d AND site_id = %d AND type = %s AND action = %s", $id, $site_id, self::TYPE, self::ACTION ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d AND site_id = %d AND type = %s AND action = %s', USMD_Sites::ta(), $id, $site_id, self::TYPE, self::ACTION ) );
 	}
 
 	public static function handle_save() {

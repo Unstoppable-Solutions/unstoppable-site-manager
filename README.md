@@ -21,7 +21,7 @@ Pair it with **[Unstoppable Site Connector](https://wordpress.org/plugins/unstop
 2. Install Unstoppable Site Connector on each client site.
 3. Connect each site: generate a connection key on the client site (Tools > Unstoppable Site Connector) and paste it into Unstoppable Site Manager > Add Site. For many sites, use **Add Site > Connect many sites at once**.
 
-Requires WordPress 5.8+ and PHP 7.4+.
+Requires WordPress 6.2+ and PHP 7.4+.
 
 ## How the connection works
 

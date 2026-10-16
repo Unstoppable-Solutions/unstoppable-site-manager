@@ -754,16 +754,6 @@
 		});
 	}
 
-	/* ---------- Add Site: nudge to click Save once a connector ZIP is chosen ---------- */
-	var czFile = document.getElementById('usmd-connector-file');
-	var czNudge = document.getElementById('usmd-connector-nudge');
-	if (czFile && czNudge) {
-		czFile.addEventListener('change', function () {
-			czNudge.hidden = !czFile.files.length;
-			if (czFile.files.length) { document.getElementById('usmd-connector-save').focus(); }
-		});
-	}
-
 	/* ---------- Security: lock sites to this dashboard's address, switch permissions off ---------- */
 	function secReplace(id, data) {
 		var tmp = document.createElement('tbody');

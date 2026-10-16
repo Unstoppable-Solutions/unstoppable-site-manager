@@ -3,15 +3,17 @@
  * Bulk connect: connect many client sites without visiting each one.
  *
  * 1. Create a bulk-connect pass here (valid for a number of days and sites).
- * 2. Download the connector ZIP made for it: the normal connector plus an
- *    enroll.json file holding this dashboard's address and the pass.
+ * 2. Download the connector ZIP made for it: the connector from WordPress.org
+ *    plus an enroll.json file holding this dashboard's address and the pass.
+ *    The ZIP is built when you download it and is never stored here.
  * 3. Install that ZIP on the sites with any bulk tool (MainWP, ManageWP, WP-CLI...).
  *    Each site then asks this dashboard to connect it, using the pass.
  *
  * The pass only lets a site ask to be connected to this dashboard. The dashboard
  * then runs the normal pairing with the one-time code the site made for itself,
  * so a site can only be added if it really runs the connector at that address.
- * Only a hash of the pass is kept here; the pass itself lives in the ZIP.
+ * The pass is kept in this plugin's settings only while it is open, so the ZIP
+ * can be downloaded again; sites are checked against its hash.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,7 +24,7 @@ final class USMD_Bulk {
 	const TYPE      = 'bulk';
 	const MAX_SITES = 2000;
 	const MAX_DAYS  = 30;
-	const FILE      = 'unstoppable-site-connector-bulk.zip';
+	const MIN_VER   = '0.6.0'; // First connector with bulk connect.
 
 	public static function hooks() {
 		add_action( 'rest_api_init', array( __CLASS__, 'register' ) );
@@ -36,7 +38,7 @@ final class USMD_Bulk {
 
 	/* ---------- the pass ---------- */
 
-	/** @return array|null The current pass: id, hash, created, expires, max, cancelled, file. */
+	/** @return array|null The current pass: id, hash, token, created, expires, max, cancelled. */
 	public static function pass() {
 		$p = get_option( self::OPT );
 		return is_array( $p ) && ! empty( $p['id'] ) ? $p : null;
@@ -46,25 +48,18 @@ final class USMD_Bulk {
 		return $p && empty( $p['cancelled'] ) && time() < (int) $p['expires'] && self::used( $p['id'] ) < (int) $p['max'];
 	}
 
-	private static function dir() {
-		$u = wp_upload_dir( null, false );
-		return trailingslashit( $u['basedir'] ) . 'usmd-connector';
-	}
-
 	/** Sites connected with this pass. */
 	public static function used( $id ) {
 		global $wpdb;
-		$t = USMD_Sites::ta();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- plugin's own table; name from $wpdb->prefix.
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE type = %s AND action = %s AND actor = %s", self::TYPE, 'connected', 'bulk:' . $id ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE type = %s AND action = %s AND actor = %s', USMD_Sites::ta(), self::TYPE, 'connected', 'bulk:' . $id ) );
 	}
 
 	/** Recent results for this pass: connected sites and refused attempts. */
 	public static function log( $id, $limit = 100 ) {
 		global $wpdb;
-		$t = USMD_Sites::ta();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- plugin's own table; name from $wpdb->prefix.
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE type = %s AND actor = %s ORDER BY id DESC LIMIT %d", self::TYPE, 'bulk:' . $id, $limit ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE type = %s AND actor = %s ORDER BY id DESC LIMIT %d', USMD_Sites::ta(), self::TYPE, 'bulk:' . $id, $limit ) );
 	}
 
 	private static function record( $id, $action, $site_id, $url, $error = '' ) {
@@ -98,53 +93,21 @@ final class USMD_Bulk {
 
 	public static function handle_create() {
 		self::guard( 'usmd_bulk_create' );
-		$zip = USMD_Connector_Zip::info();
-		if ( ! $zip ) {
-			self::back( 'no_zip' );
-		}
-		if ( ! class_exists( 'ZipArchive' ) ) {
-			self::back( 'no_ziparchive' );
-		}
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- checked in guard().
 		$days = isset( $_POST['days'] ) ? max( 1, min( self::MAX_DAYS, absint( $_POST['days'] ) ) ) : 7;
 		$max  = isset( $_POST['max'] ) ? max( 1, min( self::MAX_SITES, absint( $_POST['max'] ) ) ) : 50;
 		// phpcs:enable
-		self::remove_file();
-
-		$id    = substr( bin2hex( random_bytes( 6 ) ), 0, 12 );
 		$token = bin2hex( random_bytes( 32 ) );
-		$conf  = array(
-			'v'         => 1,
-			'dashboard' => get_bloginfo( 'name' ),
-			'home'      => home_url( '/' ),
-			'enroll'    => rest_url( 'usmd/v1/enroll' ),
-			'pass'      => $id . '.' . $token,
-		);
-
-		wp_mkdir_p( self::dir() );
-		$dest = self::dir() . '/' . $id . '-' . self::FILE;
-		if ( ! copy( $zip['file'], $dest ) ) {
-			self::back( 'failed' );
-		}
-		$z = new ZipArchive();
-		if ( true !== $z->open( $dest ) ) {
-			wp_delete_file( $dest );
-			self::back( 'failed' );
-		}
-		$z->addFromString( 'unstoppable-site-connector/enroll.json', wp_json_encode( $conf, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
-		$z->close();
-
 		update_option(
 			self::OPT,
 			array(
-				'id'        => $id,
+				'id'        => substr( bin2hex( random_bytes( 6 ) ), 0, 12 ),
 				'hash'      => hash( 'sha256', $token ),
+				'token'     => $token,
 				'created'   => time(),
 				'expires'   => time() + $days * DAY_IN_SECONDS,
 				'max'       => $max,
 				'cancelled' => false,
-				'file'      => $dest,
-				'version'   => $zip['version'],
 			),
 			false
 		);
@@ -156,32 +119,62 @@ final class USMD_Bulk {
 		$p = self::pass();
 		if ( $p ) {
 			$p['cancelled'] = true;
-			update_option( self::OPT, $p, false );
+			self::forget_token( $p );
 		}
-		self::remove_file();
 		self::back( 'cancelled' );
 	}
 
-	/** The ZIP holds the pass, so it is deleted as soon as the pass ends. */
-	private static function remove_file() {
-		$p = self::pass();
-		if ( $p && ! empty( $p['file'] ) && 0 === strpos( $p['file'], self::dir() ) && file_exists( $p['file'] ) ) {
-			wp_delete_file( $p['file'] );
-		}
+	/** An ended pass no longer needs its secret: only the hash and the counts stay. */
+	private static function forget_token( array $p ) {
+		unset( $p['token'] );
+		update_option( self::OPT, $p, false );
 	}
 
+	/**
+	 * Build the bulk-connect ZIP and send it to the browser: the connector from
+	 * WordPress.org (downloaded to WordPress's temporary folder) plus enroll.json.
+	 * The temporary file is deleted straight after.
+	 */
 	public static function handle_download() {
 		self::guard( 'usmd_bulk_download' );
 		$p = self::pass();
-		if ( ! self::is_open( $p ) || empty( $p['file'] ) || ! is_readable( $p['file'] ) ) {
+		if ( ! self::is_open( $p ) || empty( $p['token'] ) ) {
 			wp_die( esc_html__( 'This bulk-connect pass has ended. Create a new one on the Add Site screen.', 'unstoppable-site-manager' ) );
 		}
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			self::back( 'no_ziparchive' );
+		}
+		$zip = USMD_Connector_Zip::fetch();
+		if ( is_wp_error( $zip ) ) {
+			set_transient( 'usmd_bulk_error_' . get_current_user_id(), $zip->get_error_message(), 300 );
+			self::back( 'wporg' );
+		}
+		if ( version_compare( $zip['version'], self::MIN_VER, '<' ) ) {
+			wp_delete_file( $zip['file'] );
+			self::back( 'old' );
+		}
+		$conf = array(
+			'v'         => 1,
+			'dashboard' => get_bloginfo( 'name' ),
+			'home'      => home_url( '/' ),
+			'enroll'    => rest_url( 'usmd/v1/enroll' ),
+			'pass'      => $p['id'] . '.' . $p['token'],
+		);
+		$z = new ZipArchive();
+		if ( true !== $z->open( $zip['file'] ) ) {
+			wp_delete_file( $zip['file'] );
+			self::back( 'failed' );
+		}
+		$z->addFromString( USMD_CONNECTOR_SLUG . '/enroll.json', wp_json_encode( $conf, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+		$z->close();
+
 		nocache_headers();
 		header( 'Content-Type: application/zip' );
 		header( 'Content-Disposition: attachment; filename="unstoppable-site-connector.zip"' );
-		header( 'Content-Length: ' . filesize( $p['file'] ) );
+		header( 'Content-Length: ' . filesize( $zip['file'] ) );
 		header( 'X-Content-Type-Options: nosniff' );
-		readfile( $p['file'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming a file this plugin made.
+		readfile( $zip['file'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- sending the temporary file just built.
+		wp_delete_file( $zip['file'] );
 		exit;
 	}
 
@@ -261,7 +254,7 @@ final class USMD_Bulk {
 
 	public static function handle_check() {
 		self::guard( 'usmd_bulk_check' );
-		$file = isset( $_FILES['csv'] ) ? $_FILES['csv'] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- validated below.
+		$file = isset( $_FILES['csv'] ) ? $_FILES['csv'] : null; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput -- nonce checked in guard(); validated below.
 		if ( ! is_array( $file ) || ! empty( $file['error'] ) || empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) || (int) $file['size'] > 5 * MB_IN_BYTES ) {
 			self::back( 'csv_bad' );
 		}
@@ -328,16 +321,23 @@ final class USMD_Bulk {
 	public static function box() {
 		$p     = self::pass();
 		$open  = self::is_open( $p );
-		$zip   = USMD_Connector_Zip::info();
+		if ( $p && ! $open && ! empty( $p['token'] ) ) {
+			self::forget_token( $p ); // Expired or used up.
+		}
+		$error = get_transient( 'usmd_bulk_error_' . get_current_user_id() );
+		delete_transient( 'usmd_bulk_error_' . get_current_user_id() );
 		$check = get_transient( 'usmd_bulk_check_' . get_current_user_id() );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
 		$msg  = isset( $_GET['bulk'] ) ? sanitize_key( $_GET['bulk'] ) : '';
 		$msgs = array(
 			'created'       => array( 'success', __( 'Bulk-connect pass created. Download the connector below and install it on your sites.', 'unstoppable-site-manager' ) ),
-			'cancelled'     => array( 'success', __( 'Bulk-connect pass cancelled. Sites can no longer use it, and its connector ZIP was deleted.', 'unstoppable-site-manager' ) ),
-			'no_zip'        => array( 'error', __( 'Save a copy of the connector above first. The bulk-connect connector is made from it.', 'unstoppable-site-manager' ) ),
+			'cancelled'     => array( 'success', __( 'Bulk-connect pass cancelled. Sites can no longer use it.', 'unstoppable-site-manager' ) ),
+			/* translators: %s: error message. */
+			'wporg'         => array( 'error', sprintf( __( 'The connector could not be downloaded from WordPress.org: %s', 'unstoppable-site-manager' ), (string) $error ) ),
+			/* translators: %s: version number. */
+			'old'           => array( 'error', sprintf( __( 'The connector on WordPress.org is older than %s, which bulk connect needs. Try again later.', 'unstoppable-site-manager' ), self::MIN_VER ) ),
 			'no_ziparchive' => array( 'error', __( 'This server\'s PHP is missing the Zip extension, which is needed to make the connector ZIP. Ask your host to enable it.', 'unstoppable-site-manager' ) ),
-			'failed'        => array( 'error', __( 'The connector ZIP could not be made. Check that wp-content/uploads is writable.', 'unstoppable-site-manager' ) ),
+			'failed'        => array( 'error', __( 'The connector ZIP could not be made. Check that WordPress\'s temporary folder is writable.', 'unstoppable-site-manager' ) ),
 			'csv_bad'       => array( 'error', __( 'That file could not be read. Upload the CSV from MainWP > Settings > Tools > Export child sites, or any CSV with a URL column.', 'unstoppable-site-manager' ) ),
 		);
 		?>
@@ -366,12 +366,13 @@ final class USMD_Bulk {
 						</span>
 					</p>
 					<div class="usmd-bc-actions">
-						<a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=usmd_bulk_download' ), 'usmd_bulk_download' ) ); ?>">
-							<?php
-							/* translators: %s: version number. */
-							echo esc_html( sprintf( __( 'Download bulk-connect connector (version %s)', 'unstoppable-site-manager' ), $p['version'] ) );
-							?>
-						</a>
+						<?php if ( ! empty( $p['token'] ) ) : ?>
+							<a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=usmd_bulk_download' ), 'usmd_bulk_download' ) ); ?>">
+								<?php esc_html_e( 'Download bulk-connect connector', 'unstoppable-site-manager' ); ?>
+							</a>
+						<?php else : ?>
+							<span class="usmd-muted"><?php esc_html_e( 'This pass was made by an older version and its ZIP can\'t be downloaded again. Sites that already have it still connect; create a new pass for a new download.', 'unstoppable-site-manager' ); ?></span>
+						<?php endif; ?>
 						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-bc-cancel">
 							<input type="hidden" name="action" value="usmd_bulk_cancel">
 							<?php wp_nonce_field( 'usmd_bulk_cancel' ); ?>
@@ -390,23 +391,14 @@ final class USMD_Bulk {
 				<?php elseif ( $p ) : ?>
 					<p class="usmd-muted"><?php esc_html_e( 'The last pass has ended (expired or used up).', 'unstoppable-site-manager' ); ?></p>
 				<?php endif; ?>
-				<?php if ( ! $zip ) : ?>
-					<p class="usmd-bc-need"><?php esc_html_e( 'First save a copy of the connector in the box above. The bulk-connect connector is made from it.', 'unstoppable-site-manager' ); ?></p>
-				<?php else : ?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-bc-create">
-						<input type="hidden" name="action" value="usmd_bulk_create">
-						<?php wp_nonce_field( 'usmd_bulk_create' ); ?>
-						<label><?php esc_html_e( 'Up to', 'unstoppable-site-manager' ); ?> <input type="number" name="max" min="1" max="<?php echo (int) self::MAX_SITES; ?>" value="50" class="small-text"> <?php esc_html_e( 'sites', 'unstoppable-site-manager' ); ?></label>
-						<label><?php esc_html_e( 'for', 'unstoppable-site-manager' ); ?> <input type="number" name="days" min="1" max="<?php echo (int) self::MAX_DAYS; ?>" value="7" class="small-text"> <?php esc_html_e( 'days', 'unstoppable-site-manager' ); ?></label>
-						<?php submit_button( __( 'Create bulk-connect connector', 'unstoppable-site-manager' ), 'primary', 'submit', false ); ?>
-					</form>
-					<p class="usmd-muted">
-						<?php
-						/* translators: %s: version number. */
-						echo esc_html( sprintf( __( 'Made from your saved connector (version %s). Creating a new pass ends the previous one.', 'unstoppable-site-manager' ), $zip['version'] ) );
-						?>
-					</p>
-				<?php endif; ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-bc-create">
+					<input type="hidden" name="action" value="usmd_bulk_create">
+					<?php wp_nonce_field( 'usmd_bulk_create' ); ?>
+					<label><?php esc_html_e( 'Up to', 'unstoppable-site-manager' ); ?> <input type="number" name="max" min="1" max="<?php echo (int) self::MAX_SITES; ?>" value="50" class="small-text"> <?php esc_html_e( 'sites', 'unstoppable-site-manager' ); ?></label>
+					<label><?php esc_html_e( 'for', 'unstoppable-site-manager' ); ?> <input type="number" name="days" min="1" max="<?php echo (int) self::MAX_DAYS; ?>" value="7" class="small-text"> <?php esc_html_e( 'days', 'unstoppable-site-manager' ); ?></label>
+					<?php submit_button( __( 'Create bulk-connect connector', 'unstoppable-site-manager' ), 'primary', 'submit', false ); ?>
+				</form>
+				<p class="usmd-muted"><?php esc_html_e( 'Made from the current connector on WordPress.org when you download it. Creating a new pass ends the previous one.', 'unstoppable-site-manager' ); ?></p>
 			<?php endif; ?>
 
 			<?php if ( $p ) : ?>

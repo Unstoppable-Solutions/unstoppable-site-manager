@@ -5,7 +5,10 @@
  * WordPress can't render web pages itself, so a screenshot service takes the
  * picture and the dashboard keeps a cropped copy in uploads/usmd-thumbs/.
  *
- * WordPress.com mShots (the free default) refuses requests from many hosting
+ * Off by default: a screenshot service receives each client site's address, so
+ * it is only used once the owner chooses one in Settings.
+ *
+ * WordPress.com mShots (free) refuses requests from many hosting
  * servers, but works from a normal web browser. So with mShots, your browser
  * fetches the screenshot while you have the dashboard open and hands a copy
  * to the dashboard to store. A custom (usually paid, key-based) service is
@@ -32,7 +35,7 @@ final class USMD_Thumbs {
 
 	public static function provider() {
 		$s = USMD_Admin::settings();
-		return in_array( $s['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? $s['thumb_provider'] : 'mshots';
+		return in_array( $s['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? $s['thumb_provider'] : 'off';
 	}
 
 	/** True when screenshots are fetched by the browser (mShots). */

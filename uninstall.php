@@ -2,8 +2,9 @@
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 global $wpdb;
-$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'usmd_sites' ); // phpcs:ignore WordPress.DB
-$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'usmd_activity' ); // phpcs:ignore WordPress.DB
+foreach ( array( 'usmd_sites', 'usmd_activity', 'usmd_files' ) as $usmd_table ) {
+	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . $usmd_table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- removing this plugin's own tables on uninstall.
+}
 
 foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk' ) as $usmd_opt ) {
 	delete_option( $usmd_opt );
@@ -16,7 +17,7 @@ if ( function_exists( 'wp_unschedule_hook' ) ) {
 	wp_unschedule_hook( 'usmd_vuln_site' );
 }
 
-// Cached screenshots and temporary plugin packages.
+// Cached screenshots, and folders older versions used for plugin packages.
 $usmd_upload = wp_upload_dir( null, false );
 foreach ( array( 'usmd-thumbs', 'usmd-packages', 'usmd-connector' ) as $usmd_folder ) {
 	$usmd_dir = trailingslashit( $usmd_upload['basedir'] ) . $usmd_folder;

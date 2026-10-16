@@ -68,28 +68,37 @@ final class USMD_Sites {
 				KEY site_remote (site_id,remote_id)
 			) {$c};"
 		);
+		// Plugin ZIPs held for client sites to download (see USMD_Packages).
+		dbDelta(
+			'CREATE TABLE ' . USMD_Packages::table() . " (
+				token char(32) NOT NULL,
+				seq int(10) unsigned NOT NULL,
+				data longtext NOT NULL,
+				PRIMARY KEY  (token,seq)
+			) {$c};"
+		);
 	}
 
 	/* ---------- reads ---------- */
 
 	public static function all() {
 		global $wpdb;
-		return (array) $wpdb->get_results( 'SELECT * FROM ' . self::t() . ' ORDER BY name ASC' ); // phpcs:ignore WordPress.DB
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY name ASC', self::t() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	public static function get( $id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t() . ' WHERE id = %d', (int) $id ) ); // phpcs:ignore WordPress.DB
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', self::t(), (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	public static function get_by_uuid( $uuid ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t() . ' WHERE site_uuid = %s', (string) $uuid ) ); // phpcs:ignore WordPress.DB
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE site_uuid = %s', self::t(), (string) $uuid ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	public static function get_by_url( $url ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t() . ' WHERE url = %s', untrailingslashit( (string) $url ) ) ); // phpcs:ignore WordPress.DB
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE url = %s', self::t(), untrailingslashit( (string) $url ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	public static function status( $site ) {
@@ -182,15 +191,14 @@ final class USMD_Sites {
 		}
 		USMD_Vulns::schedule( $id );
 		// An empty name falls back to the URL.
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t() . " SET name = url WHERE id = %d AND name = ''", (int) $id ) ); // phpcs:ignore WordPress.DB
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET name = url WHERE id = %d AND name = ''", self::t(), (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	/** Clear "errors" that were really refused jobs, not connection problems. */
 	public static function clear_job_errors() {
 		global $wpdb;
-		$t = self::t();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- plugin's own table; name from $wpdb->prefix.
-		$wpdb->query( $wpdb->prepare( "UPDATE {$t} SET last_error = NULL WHERE last_error LIKE %s", '%' . $wpdb->esc_like( 'older connector' ) . '%' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET last_error = NULL WHERE last_error LIKE %s', self::t(), '%' . $wpdb->esc_like( 'older connector' ) . '%' ) );
 	}
 
 	public static function mark_error( $id, $message ) {
@@ -260,7 +268,7 @@ final class USMD_Sites {
 	/** Mark every screenshot as due, so they are all taken again. */
 	public static function reset_thumbs() {
 		global $wpdb;
-		$wpdb->query( 'UPDATE ' . self::t() . ' SET thumb_at = NULL, thumb_error = NULL' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET thumb_at = NULL, thumb_error = NULL', self::t() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	public static function delete( $id ) {
@@ -275,7 +283,7 @@ final class USMD_Sites {
 
 	public static function max_remote_id( $id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT MAX(remote_id) FROM ' . self::ta() . ' WHERE site_id = %d', (int) $id ) ); // phpcs:ignore WordPress.DB
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT MAX(remote_id) FROM %i WHERE site_id = %d', self::ta(), (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	/**
@@ -327,19 +335,10 @@ final class USMD_Sites {
 
 	public static function activity( $id, $limit = 50, $from = null, $to = null ) {
 		global $wpdb;
-		$sql  = 'SELECT * FROM ' . self::ta() . ' WHERE site_id = %d';
-		$args = array( (int) $id );
-		if ( $from ) {
-			$sql   .= ' AND created_at >= %s';
-			$args[] = $from;
-		}
-		if ( $to ) {
-			$sql   .= ' AND created_at < %s';
-			$args[] = $to;
-		}
-		$sql   .= ' ORDER BY created_at DESC, id DESC LIMIT %d';
-		$args[] = (int) $limit;
-		$rows   = (array) $wpdb->get_results( $wpdb->prepare( $sql, $args ) ); // phpcs:ignore WordPress.DB
+		$from = $from ? (string) $from : '1970-01-01 00:00:00';
+		$to   = $to ? (string) $to : '9999-12-31 23:59:59';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE site_id = %d AND created_at >= %s AND created_at < %s ORDER BY created_at DESC, id DESC LIMIT %d', self::ta(), (int) $id, $from, $to, (int) $limit ) );
 		foreach ( $rows as $r ) {
 			$r->details = $r->details ? json_decode( $r->details, true ) : array();
 		}

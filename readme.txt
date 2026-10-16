@@ -2,9 +2,9 @@
 Contributors: paramedic192
 Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
-Requires at least: 5.8
+Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.14.1
+Stable tag: 0.15.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -15,7 +15,7 @@ Manage all your clients' WordPress sites from your own WordPress site: updates, 
 
 Unstoppable Site Manager turns your own WordPress site into a dashboard for every client site you look after. Install it on your site, install the free [Unstoppable Site Connector](https://wordpress.org/plugins/unstoppable-site-connector/) on each client site, and pair them with a one-time key.
 
-* **Sites at a glance** – a card for every site with a screenshot, pending updates, WordPress and PHP versions, SSL expiry and when it last reported. Tiles at the top count plugin, theme and WordPress updates across all sites. Star your most important sites to pin them to the top.
+* **Sites at a glance** – a card for every site with pending updates, WordPress and PHP versions, SSL expiry, when it last reported and, if you turn screenshots on, a picture of its home page. Tiles at the top count plugin, theme and WordPress updates across all sites. Star your most important sites to pin them to the top.
 * **Updates** – update one plugin on one site, everything on one site, or everything everywhere. Opening a site checks it for updates straight away.
 * **Plugins** – one list of every plugin on every site. Activate, deactivate, update or delete across the sites you pick, or install new plugins from the WordPress.org directory, a URL or a ZIP you drop in.
 * **Vulnerability checks** (optional) – flags plugins, themes and WordPress versions with known security problems, using the free WPVulnerability database, with severity and the version that fixes each one.
@@ -76,7 +76,7 @@ This plugin connects to the following services.
 
 **Your client sites (Unstoppable Site Connector).** To show status, run updates, manage plugins and sign you in, the dashboard sends signed requests to each client site you paired, and receives status reports from them. Nothing is sent to Unstoppable Solutions.
 
-**WordPress.com mShots** (default screenshot service, can be turned off in Settings). To show a thumbnail of each client's home page, the public address of each client site is sent to `https://s0.wp.com/mshots/v1/` when a screenshot is taken (when a site is added and weekly). Provided by Automattic: [Terms of Service](https://wordpress.com/tos/), [Privacy Policy](https://automattic.com/privacy/).
+**WordPress.com mShots** (optional screenshot service, off by default; turn it on under Settings > Screenshots). Only when you turn it on, the public address of each client site is sent to `https://s0.wp.com/mshots/v1/` to show a thumbnail of its home page (when a site is added and weekly). Provided by Automattic: [Terms of Service](https://wordpress.com/tos/), [Privacy Policy](https://automattic.com/privacy/).
 
 **A screenshot service of your choice** (optional). If you enter your own screenshot API address in Settings, client site addresses are sent to it instead. That service's own terms apply.
 
@@ -84,9 +84,18 @@ This plugin connects to the following services.
 
 **WordPress.org Plugin Directory.** When you search for plugins on Plugins > Add plugin, your search terms are sent to `https://api.wordpress.org/plugins/info/` and plugin icons load from WordPress.org. [Privacy Policy](https://wordpress.org/about/privacy/).
 
-**Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept on your site for up to 6 hours at an unguessable address so your client sites can download it, then deleted. Client sites only install plugin files from WordPress.org or from your dashboard.
+**WordPress.org Plugin Directory downloads.** The Add Site screen's "Download the connector ZIP" button, and the bulk-connect connector, use the current Unstoppable Site Connector release from `https://downloads.wordpress.org/`. The bulk-connect copy is downloaded only when you click its download button.
+
+**Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.15.0 =
+* Screenshots are now off until you choose a screenshot service in Settings, because the service receives your client sites' addresses.
+* Plugin ZIPs held for client sites are now kept in the database instead of the uploads folder, and are deleted after 6 hours. Old copies in uploads/usmd-packages and uploads/usmd-connector are removed.
+* The connector ZIP now comes straight from WordPress.org: Add Site links to the WordPress.org download, and the bulk-connect connector is built from it when you download it.
+* The menu item now sits below the core WordPress menus.
+* Requires WordPress 6.2 or newer.
 
 = 0.14.1 =
 * Unstoppable Site Connector is now on WordPress.org: Add Site links to its listing and opens the client site's Add Plugins screen searched for it.
@@ -169,6 +178,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.15.0 =
+Screenshots are now opt-in (Settings > Screenshots). Requires WordPress 6.2.
 
 = 0.12.0 =
 Security screen: lock client sites to your dashboard, keep the key in wp-config.php, and choose who can use the dashboard. Update your sites to Unstoppable Site Connector 0.5.0 too.

@@ -66,7 +66,7 @@ final class USMD_Keys {
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) !== $t ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			return false;
 		}
-		return (bool) $wpdb->get_var( "SELECT COUNT(*) FROM {$t}" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- plugin's own table; name from $wpdb->prefix.
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $t ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 	}
 
 	/** Make a brand-new keypair (Security screen, after the old key was lost). */
