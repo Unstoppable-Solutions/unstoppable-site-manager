@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
 final class USMD_Move {
 
 	const OPT           = 'usmd_move';
-	const MIN_CONNECTOR = '0.7.0';
+	const MIN_CONNECTOR = '0.8.0';
 	const FORMAT        = 'unstoppable-site-manager-move';
 	const SITE_PREFIX   = 'usmd_move_site_'; // One option per site, so parallel requests never overwrite each other.
 

@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.16.0
+Stable tag: 0.17.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -90,8 +90,10 @@ This plugin connects to the following services.
 
 == Changelog ==
 
+= 0.17.0 =
+* Move dashboard: move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.8.0 on each site.
+
 = 0.16.0 =
-* Move dashboard: move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.7.0 on each site.
 * Site page: Install plugins button opens Add plugin with just that site selected.
 * Fix: typing in the Client box on a site page while the page was checking the site no longer gets wiped.
 * Clients: group sites under the client they belong to (Unstoppable Site Manager > Clients, or the Client box on a site page).
