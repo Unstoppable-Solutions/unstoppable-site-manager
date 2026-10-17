@@ -25,6 +25,7 @@ final class USMD_Admin {
 		add_submenu_page( self::SLUG, __( 'Clients', 'unstoppable-site-manager' ), __( 'Clients', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-clients', array( 'USMD_Clients', 'page' ) );
 		add_submenu_page( self::SLUG, __( 'Add Site', 'unstoppable-site-manager' ), __( 'Add Site', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-add', array( __CLASS__, 'page_add' ) );
 		add_submenu_page( self::SLUG, __( 'Client reports', 'unstoppable-site-manager' ), __( 'Reports', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-reports', array( __CLASS__, 'page_reports' ) );
+		add_submenu_page( self::SLUG, __( 'Move dashboard', 'unstoppable-site-manager' ), __( 'Move dashboard', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-move', array( 'USMD_Move', 'page' ) );
 		add_submenu_page( self::SLUG, __( 'Settings', 'unstoppable-site-manager' ), __( 'Settings', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-settings', array( __CLASS__, 'page_settings' ) );
 	}
 

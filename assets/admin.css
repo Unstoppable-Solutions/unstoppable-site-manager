@@ -576,3 +576,20 @@
 	.usmd-size-list .usmd-card-head, .usmd-size-list .usmd-card-url { flex-basis: 100%; }
 	.usmd-size-list .usmd-card-actions { margin-left: 0; }
 }
+
+/* Move dashboard */
+.usmd-move-lead { max-width: 760px; }
+.usmd-move-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; max-width: 1200px; }
+.usmd-move-cols .usmd-panel { min-width: 0; }
+.usmd-move-steps { margin: 0 0 12px 20px; }
+.usmd-move-start { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.usmd-move-start label { flex-basis: 100%; font-weight: 600; }
+.usmd-move-start input[type="url"] { flex: 1 1 240px; min-width: 0; }
+.usmd-move-count { font-size: 14px; }
+.usmd-move-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0; }
+.usmd-move-errors, .usmd-move-list { margin: 8px 0 0; padding: 0; list-style: none; max-height: 360px; overflow: auto; }
+.usmd-move-errors li, .usmd-move-list li { padding: 5px 0; border-bottom: 1px solid var(--usmd-line); font-size: 13px; overflow-wrap: anywhere; }
+.usmd-move-errors li, .usmd-move-list li.is-bad { color: var(--usmd-bad); }
+.usmd-move-list li.is-ok strong { color: var(--usmd-ok); }
+.usmd-move-list li.is-warn { color: var(--usmd-warn); }
+.usmd-bad { color: var(--usmd-bad); }

@@ -25,6 +25,9 @@ final class USMD_Sync {
 
 	public static function tick() {
 		USMD_Packages::cleanup(); // Delete plugin ZIPs held for client sites once they expire.
+		if ( USMD_Move::is_moved() ) {
+			return; // The new dashboard checks these sites now.
+		}
 		$delay       = 0;
 		$thumb_delay = 30;
 		foreach ( USMD_Sites::all() as $site ) {

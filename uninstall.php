@@ -6,7 +6,7 @@ foreach ( array( 'usmd_sites', 'usmd_activity', 'usmd_files', 'usmd_clients' ) a
 	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . $usmd_table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- removing this plugin's own tables on uninstall.
 }
 
-foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk', 'usmd_branding_refused' ) as $usmd_opt ) {
+foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk', 'usmd_branding_refused', 'usmd_move' ) as $usmd_opt ) {
 	delete_option( $usmd_opt );
 }
 wp_clear_scheduled_hook( 'usmd_sync_tick' );
@@ -36,5 +36,5 @@ foreach ( array( 'usmd-thumbs', 'usmd-packages', 'usmd-connector' ) as $usmd_fol
 	@rmdir( $usmd_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- removing this plugin's own, now-empty upload folders on uninstall, where WP_Filesystem may need FTP details.
 }
 
-// Temporary data (cached lookups, one-time tokens): every transient this plugin made.
-$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( '_transient_usmd_' ) . '%', $wpdb->esc_like( '_transient_timeout_usmd_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- one-time cleanup on uninstall.
+// Temporary data (cached lookups, one-time tokens, dashboard-move results).
+$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s', $wpdb->options, $wpdb->esc_like( '_transient_usmd_' ) . '%', $wpdb->esc_like( '_transient_timeout_usmd_' ) . '%', $wpdb->esc_like( 'usmd_move_site_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- one-time cleanup on uninstall.

@@ -50,6 +50,7 @@ require_once USMD_DIR . 'includes/class-work.php';
 require_once USMD_DIR . 'includes/class-bulk.php';
 require_once USMD_DIR . 'includes/class-clients.php';
 require_once USMD_DIR . 'includes/class-branding.php';
+require_once USMD_DIR . 'includes/class-move.php';
 require_once USMD_DIR . 'includes/class-connector-zip.php';
 
 final class USMD_Plugin {
@@ -65,6 +66,7 @@ final class USMD_Plugin {
 		USMD_Bulk::hooks();
 		USMD_Clients::hooks();
 		USMD_Branding::hooks();
+		USMD_Move::hooks();
 		USMD_Vulns::hooks();
 		USMD_Report_Mail::hooks();
 		USMD_Sync::hooks();

@@ -123,6 +123,9 @@ final class USMD_Report_Mail {
 
 	/** Hourly: on or after the chosen day, send last month's report to every client who gets them. */
 	public static function tick() {
+		if ( USMD_Move::is_moved() ) {
+			return; // Reports are sent by the new dashboard.
+		}
 		$s   = USMD_Admin::settings();
 		$day = (int) $s['report_day'];
 		if ( $day < 1 ) {
