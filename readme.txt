@@ -91,7 +91,7 @@ This plugin connects to the following services.
 == Changelog ==
 
 = 0.17.0 =
-* Move dashboard: move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.8.0 on each site.
+* Move dashboard (Add Site, below bulk connect): move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.8.0 on each site.
 
 = 0.16.0 =
 * Site page: Install plugins button opens Add plugin with just that site selected.

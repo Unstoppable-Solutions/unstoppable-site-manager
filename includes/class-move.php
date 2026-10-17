@@ -77,8 +77,9 @@ final class USMD_Move {
 		return $m && ! empty( $m['downloaded'] );
 	}
 
+	/** The Move dashboard section, below bulk connect on the Add Site screen. */
 	public static function page_url( $args = array() ) {
-		return add_query_arg( $args, admin_url( 'admin.php?page=usmd-move' ) );
+		return add_query_arg( $args, admin_url( 'admin.php?page=usmd-add' ) ) . '#usmd-move';
 	}
 
 	private static function guard( $action ) {
@@ -106,8 +107,8 @@ final class USMD_Move {
 			return;
 		}
 		$m = self::state();
-		if ( ! $m || false !== strpos( (string) $screen->id, 'usmd-move' ) ) {
-			return;
+		if ( ! $m || false !== strpos( (string) $screen->id, 'usmd-add' ) ) {
+			return; // The Add Site screen shows the move itself.
 		}
 		$text = $m['downloaded']
 			/* translators: %s: new dashboard address. */
@@ -130,11 +131,11 @@ final class USMD_Move {
 		$url  = isset( $_POST['target'] ) ? esc_url_raw( sanitize_text_field( wp_unslash( $_POST['target'] ) ), array( 'https', 'http' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked in guard().
 		$host = self::host( $url );
 		if ( ! $host || ! wp_http_validate_url( $url ) ) {
-			wp_safe_redirect( self::page_url( array( 'msg' => 'badurl' ) ) );
+			wp_safe_redirect( self::page_url( array( 'move' => 'badurl' ) ) );
 			exit;
 		}
 		if ( self::host( home_url() ) === $host ) {
-			wp_safe_redirect( self::page_url( array( 'msg' => 'same' ) ) );
+			wp_safe_redirect( self::page_url( array( 'move' => 'same' ) ) );
 			exit;
 		}
 		self::clear_sites();
@@ -156,7 +157,7 @@ final class USMD_Move {
 		self::guard( 'usmd_move_cancel' );
 		delete_option( self::OPT );
 		self::clear_sites();
-		wp_safe_redirect( self::page_url( array( 'msg' => 'cancelled' ) ) );
+		wp_safe_redirect( self::page_url( array( 'move' => 'cancelled' ) ) );
 		exit;
 	}
 
@@ -462,27 +463,27 @@ final class USMD_Move {
 
 	/* ---------- screen ---------- */
 
-	public static function page() {
+	public static function section() {
 		$m     = self::state();
 		$sites = USMD_Sites::all();
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
-		$msg  = isset( $_GET['msg'] ) ? sanitize_key( wp_unslash( $_GET['msg'] ) ) : '';
+		$msg  = isset( $_GET['move'] ) ? sanitize_key( wp_unslash( $_GET['move'] ) ) : '';
 		$msgs = array(
 			'badurl'    => array( 'error', __( 'Enter the full address of the new dashboard, like https://manage.youragency.com', 'unstoppable-site-manager' ) ),
 			'same'      => array( 'error', __( 'That is this dashboard\'s own address. Enter the new dashboard\'s address.', 'unstoppable-site-manager' ) ),
 			'cancelled' => array( 'success', __( 'Move cancelled. This dashboard manages its sites as before. Handover codes already made expire on their own within 24 hours.', 'unstoppable-site-manager' ) ),
 		);
 		?>
-		<div class="wrap usmd-wrap usmd-move">
-			<h1><?php esc_html_e( 'Move dashboard', 'unstoppable-site-manager' ); ?></h1>
+		<div class="usmd-move" id="usmd-move">
+			<h2 class="usmd-move-title"><?php esc_html_e( 'Move dashboard', 'unstoppable-site-manager' ); ?></h2>
 			<p class="usmd-move-lead"><?php esc_html_e( 'Move all your sites, clients, settings and report history from one Unstoppable Site Manager to another, for example from a test site to its permanent home. Sites stay connected; after the move only the new dashboard can manage them.', 'unstoppable-site-manager' ); ?></p>
 			<?php if ( isset( $msgs[ $msg ] ) ) : ?>
-				<div class="notice notice-<?php echo esc_attr( $msgs[ $msg ][0] ); ?>"><p><?php echo esc_html( $msgs[ $msg ][1] ); ?></p></div>
+				<div class="notice notice-<?php echo esc_attr( $msgs[ $msg ][0] ); ?> inline"><p><?php echo esc_html( $msgs[ $msg ][1] ); ?></p></div>
 			<?php endif; ?>
 
 			<div class="usmd-move-cols">
 				<section class="usmd-panel usmd-move-away">
-					<h2><?php esc_html_e( 'Move away from this dashboard', 'unstoppable-site-manager' ); ?></h2>
+					<h3><?php esc_html_e( 'Move away from this dashboard', 'unstoppable-site-manager' ); ?></h3>
 					<?php if ( ! $m ) : ?>
 						<?php if ( ! $sites ) : ?>
 							<p class="usmd-muted"><?php esc_html_e( 'No sites are connected here, so there is nothing to move.', 'unstoppable-site-manager' ); ?></p>
@@ -490,7 +491,7 @@ final class USMD_Move {
 							<ol class="usmd-move-steps">
 								<li><?php esc_html_e( 'Install Unstoppable Site Manager on the new site first.', 'unstoppable-site-manager' ); ?></li>
 								<li><?php esc_html_e( 'Enter its address below and start. Each site is asked for a one-time handover code that only works for that address, for 24 hours.', 'unstoppable-site-manager' ); ?></li>
-								<li><?php esc_html_e( 'Download the move file and import it on the new dashboard under Move dashboard > Move here.', 'unstoppable-site-manager' ); ?></li>
+								<li><?php esc_html_e( 'Download the move file and import it on the new dashboard under Add Site > Move dashboard > Move here.', 'unstoppable-site-manager' ); ?></li>
 							</ol>
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-move-start">
 								<input type="hidden" name="action" value="usmd_move_start">
@@ -548,7 +549,7 @@ final class USMD_Move {
 				</section>
 
 				<section class="usmd-panel usmd-move-here">
-					<h2><?php esc_html_e( 'Move here', 'unstoppable-site-manager' ); ?></h2>
+					<h3><?php esc_html_e( 'Move here', 'unstoppable-site-manager' ); ?></h3>
 					<p><?php esc_html_e( 'Choose the move file made on your old dashboard. Each site is recreated with its clients, report history and work notes, then connected to this dashboard.', 'unstoppable-site-manager' ); ?></p>
 					<input type="file" id="usmd-move-file" accept=".json,application/json">
 					<div id="usmd-move-preview" hidden>

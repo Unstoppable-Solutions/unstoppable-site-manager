@@ -593,3 +593,6 @@
 .usmd-move-list li.is-ok strong { color: var(--usmd-ok); }
 .usmd-move-list li.is-warn { color: var(--usmd-warn); }
 .usmd-bad { color: var(--usmd-bad); }
+.usmd-move { margin-top: 32px; max-width: 1120px; }
+.usmd-move-title { font-size: 1.3em; margin: 0 0 6px; }
+.usmd-move .usmd-panel h3 { margin: 0 0 10px; font-size: 15px; }
