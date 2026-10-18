@@ -272,7 +272,8 @@ final class USMD_Admin {
 
 	/**
 	 * "Connector 0.1 — update by hand" (link to the site's Upload Plugin screen) or
-	 * "Connector 0.2.0 — push update" (link to Plugins > Add plugin here).
+	 * "Connector 0.7.0: update available" (link to Plugins, where it updates like any plugin;
+	 * FM Connector links to Add plugin, since the new connector has another slug).
 	 */
 	public static function connector_notice( $site, $ver, $state, $context ) {
 		if ( ! $state ) {
@@ -288,7 +289,8 @@ final class USMD_Admin {
 			$title = __( 'This connector can\'t receive plugins from the dashboard. Opens the site\'s Upload Plugin screen: upload the connector ZIP from WordPress.org and choose "Replace current with uploaded". After this one update, connector updates can be pushed from here.', 'unstoppable-site-manager' );
 			$attrs = ' target="_blank" rel="noopener"';
 		} else {
-			$url   = admin_url( 'admin.php?page=usmd-plugins&view=add' );
+			// FM Connector has another slug, so it is replaced from Add plugin; newer ones update like any plugin.
+			$url   = $old_name ? admin_url( 'admin.php?page=usmd-plugins&view=add' ) : admin_url( 'admin.php?page=usmd-plugins' );
 			/* translators: %s: connector version. */
 			$text  = $old_name
 				/* translators: %s: connector version. */
@@ -297,7 +299,7 @@ final class USMD_Admin {
 				: sprintf( __( 'Connector %s: update available', 'unstoppable-site-manager' ), $label );
 			$title = $old_name
 				? __( 'On Plugins > Add plugin, search WordPress.org for Unstoppable Site Connector and install it on this site. It takes over the connection (no re-pairing).', 'unstoppable-site-manager' )
-				: __( 'Update it like any other plugin (it is on WordPress.org), or install Unstoppable Site Connector from Plugins > Add plugin. It replaces the old copy and stays connected.', 'unstoppable-site-manager' );
+				: __( 'It is on WordPress.org, so it updates like any other plugin: Update all on the site, or Update on the Plugins screen. It stays connected.', 'unstoppable-site-manager' );
 			$attrs = '';
 		}
 		printf(
@@ -600,7 +602,7 @@ final class USMD_Admin {
 					<small data-stat="connector-manual">
 						<?php
 						/* translators: %d: number of sites. */
-						echo esc_html( $t['connector_manual'] ? sprintf( _n( '%d needs a manual update', '%d need a manual update', $t['connector_manual'], 'unstoppable-site-manager' ), $t['connector_manual'] ) : __( 'update from Add plugin', 'unstoppable-site-manager' ) );
+						echo esc_html( $t['connector_manual'] ? sprintf( _n( '%d needs a manual update', '%d need a manual update', $t['connector_manual'], 'unstoppable-site-manager' ), $t['connector_manual'] ) : __( 'update like any plugin', 'unstoppable-site-manager' ) );
 						?>
 					</small>
 				</button>

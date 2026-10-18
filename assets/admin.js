@@ -357,7 +357,7 @@
 		var ct = box.querySelector('.usmd-stat-connector');
 		if (ct) {
 			set('connector', t.conn);
-			set('connector-manual', t.connManual ? t.connManual + (t.connManual === 1 ? ' needs' : ' need') + ' a manual update' : 'update from Add plugin');
+			set('connector-manual', t.connManual ? t.connManual + (t.connManual === 1 ? ' needs' : ' need') + ' a manual update' : 'update like any plugin');
 			ct.hidden = t.conn === 0;
 			ct.classList.toggle('has-updates', t.conn > 0);
 			if (!t.conn && filter === 'connector') { setFilter('all'); }

@@ -93,6 +93,7 @@ This plugin connects to the following services.
 = 0.17.1 =
 * Site page: Activate, Deactivate and Delete links under each plugin (hover the row), and an Add plugin button next to the Plugins heading. The connector itself has no links, so it can't be switched off by mistake.
 * Add plugin opened from a site page: the back arrow returns to that site.
+* Old connectors tile and notices: the connector is on WordPress.org, so they now say it updates like any plugin (and link to Plugins) instead of pointing to Add plugin.
 
 = 0.17.0 =
 * Move dashboard (Add Site, below bulk connect): move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.8.0 on each site.
