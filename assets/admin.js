@@ -560,6 +560,28 @@
 	initSitePage();
 	if (document.querySelector('.usmd-site')) { refreshSitePage(); }
 
+	/* Site page: Activate / Deactivate / Delete one plugin on this site (delegated: the page is swapped on reload). */
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('.usmd-plugin-op');
+		var pageEl = document.querySelector('.usmd-site');
+		if (!b || !pageEl) { return; }
+		if (sitePageBusy) { siteStatus('Still working on this site. Try again in a moment.', 'busy'); return; }
+		var row = b.closest('.usmd-row-actions'), op = b.dataset.op, name = row.dataset.name;
+		var verb = { activate: 'Activating', deactivate: 'Deactivating', delete: 'Deleting' }[op];
+		if (op === 'delete' && !window.confirm('Delete ' + name + ' from this site? Its files are removed and this cannot be undone. If it is active, it is deactivated first.')) { return; }
+		sitePageBusy = true;
+		pageEl.querySelectorAll('.usmd-plugin-op').forEach(function (x) { x.disabled = true; });
+		siteStatus(verb + ' ' + name + '…', 'busy');
+		post('plugin_action', { site: pageEl.dataset.site, op: op, files: [row.dataset.file] }).then(function (res) {
+			var r = res.success ? (res.data.results || [])[0] || {} : null;
+			var msg, kind = 'ok';
+			if (!res.success) { msg = 'Could not change ' + name + ': ' + ((res.data && res.data.message) || 'unknown error'); kind = 'bad'; }
+			else if (r.result === 'failed' || r.result === 'skipped') { msg = name + ': ' + (r.error || r.result); kind = 'bad'; }
+			else { msg = name + ' ' + ({ activated: 'activated', deactivated: 'deactivated', deleted: 'deleted', unchanged: 'was already like that' }[r.result] || r.result) + '.'; }
+			return reloadSitePage({ text: msg, kind: kind });
+		}).then(function () { sitePageBusy = false; }, function () { sitePageBusy = false; });
+	});
+
 	/* ---------- card size (remembered in this browser) ---------- */
 	var grid = document.getElementById('usmd-grid');
 	function setSize(size) {

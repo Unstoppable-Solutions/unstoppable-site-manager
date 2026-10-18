@@ -596,3 +596,13 @@
 .usmd-move { margin-top: 32px; max-width: 1120px; }
 .usmd-move-title { font-size: 1.3em; margin: 0 0 6px; }
 .usmd-move .usmd-panel h3 { margin: 0 0 10px; font-size: 15px; }
+
+/* Site page: plugin row actions */
+.usmd-subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usmd-subhead h3 { margin: 1.4em 0 .6em; }
+.usmd-row-actions { margin-top: 4px; font-size: 12px; visibility: hidden; }
+.usmd-table tr:hover .usmd-row-actions, .usmd-row-actions:focus-within { visibility: visible; }
+.usmd-row-actions .button-link { font-size: 12px; text-decoration: none; }
+.usmd-row-actions .button-link:disabled { opacity: .5; cursor: default; }
+.usmd-row-actions .usmd-link-danger, .usmd-row-actions .usmd-link-danger:hover { color: #b32d2e; }
+@media (hover: none) { .usmd-row-actions { visibility: visible; } }

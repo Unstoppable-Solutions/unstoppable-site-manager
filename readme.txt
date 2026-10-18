@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.17.0
+Stable tag: 0.17.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -89,6 +89,10 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.17.1 =
+* Site page: Activate, Deactivate and Delete links under each plugin (hover the row), and an Add plugin button next to the Plugins heading. The connector itself has no links, so it can't be switched off by mistake.
+* Add plugin opened from a site page: the back arrow returns to that site.
 
 = 0.17.0 =
 * Move dashboard (Add Site, below bulk connect): move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.8.0 on each site.

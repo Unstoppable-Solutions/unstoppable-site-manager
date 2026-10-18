@@ -121,7 +121,12 @@ final class USMD_Plugins_Page {
 		<div class="wrap usmd-wrap usmd-plugins-page">
 			<div class="usmd-page-head">
 				<?php if ( $add ) : ?>
-					<a class="button usmd-back" href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ); ?>" aria-label="<?php esc_attr_e( 'Back to plugins', 'unstoppable-site-manager' ); ?>">←</a>
+					<?php $usmd_from = isset( $_GET['site'] ) ? USMD_Sites::get( absint( $_GET['site'] ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification -- only picks the back link. ?>
+					<?php if ( $usmd_from ) : ?>
+						<a class="button usmd-back" href="<?php echo esc_url( USMD_Admin::site_url( $usmd_from->id ) ); ?>" aria-label="<?php esc_attr_e( 'Back to the site', 'unstoppable-site-manager' ); ?>">←</a>
+					<?php else : ?>
+						<a class="button usmd-back" href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ); ?>" aria-label="<?php esc_attr_e( 'Back to plugins', 'unstoppable-site-manager' ); ?>">←</a>
+					<?php endif; ?>
 					<h1><?php esc_html_e( 'Plugins', 'unstoppable-site-manager' ); ?> <span class="usmd-muted">›</span> <?php esc_html_e( 'Add plugin', 'unstoppable-site-manager' ); ?></h1>
 				<?php else : ?>
 					<h1><?php esc_html_e( 'Plugins', 'unstoppable-site-manager' ); ?></h1>

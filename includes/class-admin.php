@@ -744,6 +744,12 @@ final class USMD_Admin {
 
 	/* ---------- site detail ---------- */
 
+	/** The connector itself (or the old FM Connector): no deactivate/delete links for it. */
+	private static function is_connector_file( $file ) {
+		$slug = false !== strpos( $file, '/' ) ? dirname( $file ) : preg_replace( '/\.php$/', '', $file );
+		return in_array( $slug, array( 'fm-connector', apply_filters( 'usmd_connector_slug', USMD_CONNECTOR_SLUG ) ), true );
+	}
+
 	public static function page_site( $site ) {
 		$st      = USMD_Sites::status( $site );
 		$plugins = isset( $st['plugins'] ) ? $st['plugins'] : array();
@@ -822,14 +828,30 @@ final class USMD_Admin {
 							</tbody>
 						</table>
 
-						<h3>Plugins <span class="usmd-muted">(<?php echo count( $plugins ); ?>)</span></h3>
+						<div class="usmd-subhead">
+							<h3>Plugins <span class="usmd-muted">(<?php echo count( $plugins ); ?>)</span></h3>
+							<a class="button button-small" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-plugins&view=add&site=' . (int) $site->id ) ); ?>">+ <?php esc_html_e( 'Add plugin', 'unstoppable-site-manager' ); ?></a>
+						</div>
 						<table class="widefat striped usmd-table">
 							<thead><tr><td class="check-column"></td><th>Plugin</th><th>Installed</th><th>Available</th><th>Status</th></tr></thead>
 							<tbody>
 							<?php foreach ( $plugins as $p ) : ?>
 								<tr>
 									<th class="check-column"><?php if ( ! empty( $p['update'] ) ) : ?><input type="checkbox" class="usmd-item" value="<?php echo esc_attr( 'plugin:' . $p['file'] ); ?>"><?php endif; ?></th>
-									<td><strong><?php echo esc_html( $p['name'] ); ?></strong><br><code class="usmd-muted"><?php echo esc_html( $p['file'] ); ?></code></td>
+									<td>
+										<strong><?php echo esc_html( $p['name'] ); ?></strong><br><code class="usmd-muted"><?php echo esc_html( $p['file'] ); ?></code>
+										<?php if ( ! self::is_connector_file( $p['file'] ) ) : ?>
+											<div class="usmd-row-actions" data-file="<?php echo esc_attr( $p['file'] ); ?>" data-name="<?php echo esc_attr( html_entity_decode( $p['name'], ENT_QUOTES, 'UTF-8' ) ); ?>">
+												<?php if ( ! empty( $p['active'] ) ) : ?>
+													<button type="button" class="button-link usmd-plugin-op" data-op="deactivate"><?php esc_html_e( 'Deactivate', 'unstoppable-site-manager' ); ?></button>
+												<?php else : ?>
+													<button type="button" class="button-link usmd-plugin-op" data-op="activate"><?php esc_html_e( 'Activate', 'unstoppable-site-manager' ); ?></button>
+												<?php endif; ?>
+												<span class="usmd-muted" aria-hidden="true">|</span>
+												<button type="button" class="button-link usmd-plugin-op usmd-link-danger" data-op="delete"><?php esc_html_e( 'Delete', 'unstoppable-site-manager' ); ?></button>
+											</div>
+										<?php endif; ?>
+									</td>
 									<td><?php echo esc_html( $p['version'] ); ?></td>
 									<td><?php echo ! empty( $p['update'] ) ? '<span class="usmd-pill usmd-pill-warn">' . esc_html( $p['update'] ) . '</span>' : '—'; ?></td>
 									<td><?php echo ! empty( $p['active'] ) ? 'Active' : '<span class="usmd-muted">Inactive</span>'; ?><?php echo ! empty( $p['auto_update'] ) ? ' · auto' : ''; ?></td>
