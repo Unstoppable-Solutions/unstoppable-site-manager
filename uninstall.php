@@ -11,6 +11,7 @@ foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated
 }
 wp_clear_scheduled_hook( 'usmd_sync_tick' );
 wp_clear_scheduled_hook( 'usmd_report_tick' );
+wp_clear_scheduled_hook( 'usmd_report_more' );
 if ( function_exists( 'wp_unschedule_hook' ) ) {
 	wp_unschedule_hook( 'usmd_sync_site' );
 	wp_unschedule_hook( 'usmd_thumb' );

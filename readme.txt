@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.17.2
+Stable tag: 0.17.3
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -89,6 +89,10 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.17.3 =
+* Monthly report emails on big dashboards: sent in batches of up to 50 (or 20 seconds) with a follow-up batch two minutes later, instead of 10 an hour. 339 automatic reports now go out in about half an hour instead of a day and a half.
+* The sent-reports log keeps the last 13 months per site, so it stays small with hundreds of sites.
 
 = 0.17.2 =
 * Old connectors tile and notices: the connector is on WordPress.org, so they now say it updates like any plugin (and link to Plugins) instead of pointing to Add plugin.

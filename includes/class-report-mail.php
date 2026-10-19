@@ -17,10 +17,14 @@ final class USMD_Report_Mail {
 
 	const TICK     = 'usmd_report_tick';
 	const SENT     = 'usmd_report_sent';
-	const PER_TICK = 10; // Emails per hourly run, so a big list never times out.
+	const MORE     = 'usmd_report_more';
+	const PER_TICK = 50; // At most this many emails per run…
+	const BUDGET   = 20; // …and stop after this many seconds, so a slow mail server never times out.
+	const KEEP     = 13; // Months of sent-log kept per site.
 
 	public static function hooks() {
 		add_action( self::TICK, array( __CLASS__, 'tick' ) );
+		add_action( self::MORE, array( __CLASS__, 'tick' ) ); // Follow-up run while a big batch is still going out.
 		add_action( 'init', array( __CLASS__, 'ensure_scheduled' ) );
 		add_action( 'admin_post_usmd_report_send', array( __CLASS__, 'handle_send' ) );
 		add_action( 'admin_post_usmd_client', array( __CLASS__, 'handle_client' ) );
@@ -63,6 +67,9 @@ final class USMD_Report_Mail {
 			'to'   => implode( ', ', $to ),
 			'auto' => (bool) $auto,
 		);
+		// Keep the log small on dashboards with hundreds of sites: only the last KEEP months.
+		ksort( $all[ (int) $site_id ] );
+		$all[ (int) $site_id ] = array_slice( $all[ (int) $site_id ], -self::KEEP, null, true );
 		update_option( self::SENT, $all, false );
 	}
 
@@ -137,12 +144,15 @@ final class USMD_Report_Mail {
 		}
 		$month = $now->modify( 'first day of last month' )->format( 'Y-m' );
 		$sent  = 0;
+		$start = microtime( true );
+		$more  = false;
 		foreach ( USMD_Sites::all() as $site ) {
-			if ( $sent >= self::PER_TICK ) {
-				break; // The rest go out next hour.
-			}
 			if ( empty( $site->report_auto ) || '' === $site->client_email || self::sent( $site->id, $month ) ) {
 				continue;
+			}
+			if ( $sent >= self::PER_TICK || microtime( true ) - $start > self::BUDGET ) {
+				$more = true; // The rest go out in a follow-up run a couple of minutes from now.
+				break;
 			}
 			$r = self::send( $site, $month, null, false, true );
 			++$sent;
@@ -151,6 +161,9 @@ final class USMD_Report_Mail {
 				// Record the attempt so a broken mail setup doesn't retry every hour all month.
 				self::mark_sent( $site->id, $month, array(), true );
 			}
+		}
+		if ( $more && ! wp_next_scheduled( self::MORE ) ) {
+			wp_schedule_single_event( time() + 2 * MINUTE_IN_SECONDS, self::MORE );
 		}
 	}
 
