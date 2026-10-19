@@ -21,6 +21,8 @@ Unstoppable Site Manager turns your own WordPress site into a dashboard for ever
 * **Vulnerability checks** (optional) – flags plugins, themes and WordPress versions with known security problems, using the free WPVulnerability database, with severity and the version that fixes each one.
 * **One-click sign-in** – open any client's wp-admin already signed in. No passwords are stored; each sign-in link works once and expires after 60 seconds.
 * **Client reports** – a monthly Website Care Report for each site, with your logo and brand color: a plain-English health verdict, a health checklist, one tidy line per update, the month's other changes, the other work you did for them and an optional personal note. Print it, save it as PDF, or email it to your client, by hand or automatically each month.
+* **Clients** – group sites under the client they belong to, then refresh, update and pick plugins for just that client's sites. Give each client their own report branding (name, logo, colour, wording, sender) and, if you like, your name in the admin footer of their sites.
+* **Move your dashboard** – moving to a new WordPress install? Take every site, client, setting and report history with you. Each site hands over with a one-time code, and the old dashboard can no longer manage them.
 * **Bulk connect** – moving from MainWP or ManageWP? Make a connector that knows your dashboard, push it to all your sites with that tool's bulk plugin install, and every site connects itself. Upload MainWP's site export to see which ones are still missing.
 * **Security you can check** – a Security screen with a checklist for your dashboard, one-click locking of every client site to your dashboard's address, and per-site permission switches. Details below.
 * **Built not to time out** – bulk jobs run one site at a time from your browser, and a site that fails is reported and skipped. Client sites push their own reports, so your dashboard isn't polling all day.
@@ -205,6 +207,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.17.3 =
+First release on WordPress.org: clients, per-client branding, plugin actions on each site's page and Move dashboard. Update your sites to Unstoppable Site Connector 0.8.0 to use every feature.
 
 = 0.15.0 =
 Screenshots are now opt-in (Settings > Screenshots). Requires WordPress 6.2.
