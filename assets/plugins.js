@@ -69,6 +69,23 @@
 	document.getElementById('usmd-pick-all').addEventListener('click', function () { P.sites.forEach(function (s) { picked[s.id] = true; }); renderPicker(); });
 	document.getElementById('usmd-pick-none').addEventListener('click', function () { picked = {}; renderPicker(); });
 	document.getElementById('usmd-pick-starred').addEventListener('click', function () { picked = {}; P.sites.forEach(function (s) { if (s.starred) { picked[s.id] = true; } }); renderPicker(); });
+	var pickClient = document.getElementById('usmd-pick-client');
+	if (pickClient) {
+		pickClient.addEventListener('change', function () {
+			var cid = parseInt(pickClient.value, 10) || 0;
+			if (!cid) { return; }
+			picked = {};
+			P.sites.forEach(function (s) { if (s.client === cid) { picked[s.id] = true; } });
+			renderPicker();
+		});
+		// Arriving from a client (?client=ID): start with just their sites.
+		var fromUrl = parseInt(new URLSearchParams(window.location.search).get('client'), 10) || 0;
+		if (fromUrl && pickClient.querySelector('option[value="' + fromUrl + '"]')) { pickClient.value = String(fromUrl); pickClient.dispatchEvent(new Event('change')); }
+	}
+
+	// Arriving from a site page (?site=ID): start with just that site.
+	var oneSite = parseInt(new URLSearchParams(window.location.search).get('site'), 10) || 0;
+	if (oneSite && P.sites.some(function (s) { return s.id === oneSite; })) { picked = {}; picked[oneSite] = true; }
 
 	if (P.view === 'add') { initAdd(); } else { initManage(); }
 	renderPicker();

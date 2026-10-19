@@ -47,9 +47,11 @@ final class USMD_Sites {
 				client_name varchar(191) NOT NULL DEFAULT '',
 				client_email varchar(255) NOT NULL DEFAULT '',
 				report_auto tinyint(1) NOT NULL DEFAULT 0,
+				client_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
-				KEY site_uuid (site_uuid)
+				KEY site_uuid (site_uuid),
+				KEY client_id (client_id)
 			) {$c};"
 		);
 		dbDelta(
@@ -66,6 +68,16 @@ final class USMD_Sites {
 				PRIMARY KEY  (id),
 				KEY site_time (site_id,created_at),
 				KEY site_remote (site_id,remote_id)
+			) {$c};"
+		);
+		// Clients that sites are grouped under (see USMD_Clients).
+		dbDelta(
+			'CREATE TABLE ' . USMD_Clients::table() . " (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(191) NOT NULL DEFAULT '',
+				settings longtext NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id)
 			) {$c};"
 		);
 		// Plugin ZIPs held for client sites to download (see USMD_Packages).
@@ -158,7 +170,7 @@ final class USMD_Sites {
 		return (int) $wpdb->insert_id;
 	}
 
-	public static function store_status( $id, array $status ) {
+	public static function store_status( $id, array $status, $check_branding = true ) {
 		global $wpdb;
 		$sum = isset( $status['summary'] ) ? $status['summary'] : array();
 		$wpdb->update(
@@ -204,6 +216,9 @@ final class USMD_Sites {
 		USMD_Vulns::schedule( $id );
 		// An empty name falls back to the URL.
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET name = url WHERE id = %d AND name = ''", self::t(), (int) $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		if ( $check_branding ) {
+			USMD_Branding::check( $id, $status );
+		}
 	}
 
 	/** Clear "errors" that were really refused jobs, not connection problems. */

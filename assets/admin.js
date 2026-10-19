@@ -299,10 +299,13 @@
 	/* ---------- grid filters ---------- */
 	var filter = 'all';
 	var search = document.getElementById('usmd-search');
+	var clientPick = document.getElementById('usmd-client-filter');
 	function applyFilter() {
 		var q = search ? search.value.trim().toLowerCase() : '';
+		var cl = clientPick ? clientPick.value : '0';
 		document.querySelectorAll('.usmd-card').forEach(function (c) {
 			var show = (!q || c.dataset.search.indexOf(q) !== -1) &&
+				(cl === '0' || c.dataset.client === cl) &&
 				(filter === 'all' ||
 				(filter === 'updates' && c.dataset.updates !== '0') ||
 				(filter === 'plugins' && c.dataset.pluginUpdates !== '0') ||
@@ -323,7 +326,9 @@
 		var box = document.getElementById('usmd-stats');
 		if (!box) { return; }
 		var t = { sites: 0, plugins: 0, pluginSites: 0, themes: 0, themeSites: 0, core: 0, errors: 0, conn: 0, connManual: 0, vulns: 0, vulnSites: 0 };
+		var cl = clientPick ? clientPick.value : '0';
 		document.querySelectorAll('.usmd-card').forEach(function (c) {
+			if (cl !== '0' && c.dataset.client !== cl) { return; } // Tiles count the chosen client's sites.
 			var p = parseInt(c.dataset.pluginUpdates, 10) || 0, th = parseInt(c.dataset.themeUpdates, 10) || 0;
 			t.sites++;
 			t.plugins += p; t.pluginSites += p ? 1 : 0;
@@ -352,7 +357,7 @@
 		var ct = box.querySelector('.usmd-stat-connector');
 		if (ct) {
 			set('connector', t.conn);
-			set('connector-manual', t.connManual ? t.connManual + (t.connManual === 1 ? ' needs' : ' need') + ' a manual update' : 'update from Add plugin');
+			set('connector-manual', t.connManual ? t.connManual + (t.connManual === 1 ? ' needs' : ' need') + ' a manual update' : 'update like any plugin');
 			ct.hidden = t.conn === 0;
 			ct.classList.toggle('has-updates', t.conn > 0);
 			if (!t.conn && filter === 'connector') { setFilter('all'); }
@@ -373,6 +378,22 @@
 		allSection.querySelector('[data-count]').textContent = '(' + document.querySelectorAll('#usmd-grid .usmd-card:not([hidden])').length + ')';
 	}
 	if (search) { search.addEventListener('input', applyFilter); }
+	/* Client picker: Refresh all / Update all then work on just that client's sites. */
+	if (clientPick) {
+		clientPick.addEventListener('change', function () {
+			applyFilter();
+			try {
+				var u = new URL(window.location.href);
+				if (clientPick.value === '0') { u.searchParams.delete('client'); } else { u.searchParams.set('client', clientPick.value); }
+				window.history.replaceState(null, '', u.toString());
+			} catch (err) { /* old browser: the filter still works */ }
+		});
+		if (clientPick.value !== '0') { applyFilter(); }
+	}
+	/* Forms that ask before submitting (data-ask). */
+	document.querySelectorAll('form[data-ask]').forEach(function (f) {
+		f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.ask)) { e.preventDefault(); } });
+	});
 	function setFilter(f) {
 		filter = f;
 		document.querySelectorAll('.usmd-filters .button, .usmd-stat').forEach(function (x) { x.classList.toggle('is-active', x.dataset.filter === f && f !== 'all'); });
@@ -539,12 +560,34 @@
 	initSitePage();
 	if (document.querySelector('.usmd-site')) { refreshSitePage(); }
 
+	/* Site page: Activate / Deactivate / Delete one plugin on this site (delegated: the page is swapped on reload). */
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('.usmd-plugin-op');
+		var pageEl = document.querySelector('.usmd-site');
+		if (!b || !pageEl) { return; }
+		if (sitePageBusy) { siteStatus('Still working on this site. Try again in a moment.', 'busy'); return; }
+		var row = b.closest('.usmd-row-actions'), op = b.dataset.op, name = row.dataset.name;
+		var verb = { activate: 'Activating', deactivate: 'Deactivating', delete: 'Deleting' }[op];
+		if (op === 'delete' && !window.confirm('Delete ' + name + ' from this site? Its files are removed and this cannot be undone. If it is active, it is deactivated first.')) { return; }
+		sitePageBusy = true;
+		pageEl.querySelectorAll('.usmd-plugin-op').forEach(function (x) { x.disabled = true; });
+		siteStatus(verb + ' ' + name + '…', 'busy');
+		post('plugin_action', { site: pageEl.dataset.site, op: op, files: [row.dataset.file] }).then(function (res) {
+			var r = res.success ? (res.data.results || [])[0] || {} : null;
+			var msg, kind = 'ok';
+			if (!res.success) { msg = 'Could not change ' + name + ': ' + ((res.data && res.data.message) || 'unknown error'); kind = 'bad'; }
+			else if (r.result === 'failed' || r.result === 'skipped') { msg = name + ': ' + (r.error || r.result); kind = 'bad'; }
+			else { msg = name + ' ' + ({ activated: 'activated', deactivated: 'deactivated', deleted: 'deleted', unchanged: 'was already like that' }[r.result] || r.result) + '.'; }
+			return reloadSitePage({ text: msg, kind: kind });
+		}).then(function () { sitePageBusy = false; }, function () { sitePageBusy = false; });
+	});
+
 	/* ---------- card size (remembered in this browser) ---------- */
 	var grid = document.getElementById('usmd-grid');
 	function setSize(size) {
-		if (!grid || ['s', 'm', 'l'].indexOf(size) === -1) { return; }
+		if (!grid || ['s', 'm', 'l', 'list'].indexOf(size) === -1) { return; }
 		document.querySelectorAll('.usmd-grid').forEach(function (g) {
-			g.classList.remove('usmd-size-s', 'usmd-size-m', 'usmd-size-l');
+			g.classList.remove('usmd-size-s', 'usmd-size-m', 'usmd-size-l', 'usmd-size-list');
 			g.classList.add('usmd-size-' + size);
 		});
 		document.querySelectorAll('.usmd-sizes .button').forEach(function (b) { b.classList.toggle('is-active', b.dataset.size === size); });
@@ -957,4 +1000,82 @@
 	/* ---------- Client report: print button ---------- */
 	var printBtn = document.getElementById('usmd-print');
 	if (printBtn) { printBtn.addEventListener('click', function () { window.print(); }); }
+
+	/* ---------- Move dashboard ---------- */
+	function lanes(list, n, fn) {
+		var i = 0;
+		function next() { if (i >= list.length) { return Promise.resolve(); } var item = list[i++]; return fn(item).then(next, next); }
+		var runs = []; for (var k = 0; k < Math.min(n, list.length); k++) { runs.push(next()); }
+		return Promise.all(runs);
+	}
+	var moveCodes = document.getElementById('usmd-move-codes');
+	var moveRun = document.getElementById('usmd-move-run');
+	if (moveCodes && moveRun) {
+		moveRun.addEventListener('click', function () {
+			var all = JSON.parse(moveCodes.dataset.sites || '[]'), done = JSON.parse(moveCodes.dataset.done || '[]');
+			var todo = all.filter(function (id) { return done.indexOf(id) === -1; });
+			var okEl = document.getElementById('usmd-move-ok'), errs = document.getElementById('usmd-move-errors');
+			var ok = done.length;
+			moveRun.disabled = true; errs.textContent = '';
+			moveRun.textContent = 'Asking ' + todo.length + ' sites…';
+			lanes(todo, 4, function (id) {
+				return post('move_code', { site: id }).then(function (r) {
+					if (r.success) { ok++; okEl.textContent = ok; return; }
+					var li = el('li');
+					li.appendChild(el('strong', '', 'Site ' + id)); li.appendChild(document.createTextNode(': ' + ((r.data && r.data.message) || 'failed')));
+					errs.appendChild(li);
+				});
+			}).then(function () { window.location.reload(); });
+		});
+	}
+
+	var moveFile = document.getElementById('usmd-move-file');
+	if (moveFile) {
+		var moveData = null;
+		var preview = document.getElementById('usmd-move-preview'), summary = document.getElementById('usmd-move-summary');
+		moveFile.addEventListener('change', function () {
+			preview.hidden = true; moveData = null;
+			var f = moveFile.files && moveFile.files[0]; if (!f) { return; }
+			var rd = new FileReader();
+			rd.onload = function () {
+				try { moveData = JSON.parse(rd.result); } catch (e) { moveData = null; }
+				if (!moveData || moveData.format !== 'unstoppable-site-manager-move' || !Array.isArray(moveData.sites)) {
+					summary.textContent = 'That is not a move file from Unstoppable Site Manager.'; preview.hidden = false;
+					document.getElementById('usmd-move-import').disabled = true; return;
+				}
+				var keyed = moveData.sites.filter(function (s) { return s.key; }).length;
+				summary.textContent = 'From ' + (moveData.from_name || moveData.from) + ': ' + moveData.sites.length + ' sites (' + keyed + ' ready to connect), ' + (moveData.clients || []).length + ' clients.';
+				document.getElementById('usmd-move-import').disabled = false;
+				preview.hidden = false;
+			};
+			rd.readAsText(f);
+		});
+		document.getElementById('usmd-move-import').addEventListener('click', function () {
+			if (!moveData) { return; }
+			var btn = this; btn.disabled = true; moveFile.disabled = true;
+			var res = document.getElementById('usmd-move-results'), prog = document.getElementById('usmd-move-progress'), list = document.getElementById('usmd-move-list');
+			res.hidden = false; list.textContent = '';
+			prog.textContent = 'Checking the file…';
+			var head = Object.assign({}, moveData); delete head.sites;
+			post('move_import_start', { head: JSON.stringify(head), settings: document.getElementById('usmd-move-settings').checked ? 1 : 0 }).then(function (r) {
+				if (!r.success) { prog.textContent = (r.data && r.data.message) || 'The file could not be imported.'; btn.disabled = false; moveFile.disabled = false; return; }
+				var map = JSON.stringify(r.data.clients || {}), n = 0, ok = 0, locked = 0, bad = 0, total = moveData.sites.length;
+				return lanes(moveData.sites, 2, function (site) {
+					return post('move_import_site', { site: JSON.stringify(site), clients: map }).then(function (x) {
+						n++;
+						var li = el('li', x.success ? (x.data.locked ? 'is-warn' : 'is-ok') : 'is-bad');
+						li.appendChild(el('strong', '', site.name || site.url));
+						if (x.success && !x.data.locked) { ok++; li.appendChild(document.createTextNode(x.data.already ? ': already moved here' : ': connected')); }
+						else if (x.success) { locked++; li.appendChild(document.createTextNode(': connected, but locked to the old dashboard\'s IP address. Allow this dashboard\'s address on the site (Tools > Unstoppable Site Connector > Security).')); }
+						else { bad++; li.appendChild(document.createTextNode(': ' + ((x.data && x.data.message) || 'failed') + (x.data && x.data.kept ? ' Its history is here; reconnect it with a connection key from the site.' : ''))); }
+						list.appendChild(li);
+						prog.textContent = 'Imported ' + n + ' of ' + total + '…';
+					});
+				}).then(function () {
+					prog.textContent = 'Done: ' + ok + ' connected' + (locked ? ', ' + locked + ' need their IP lock updated' : '') + (bad ? ', ' + bad + ' need reconnecting by hand' : '') + '.';
+					var a = el('a', 'button button-primary', 'Go to Sites'); a.href = cfg.grid; prog.appendChild(document.createTextNode(' ')); prog.appendChild(a);
+				});
+			});
+		});
+	}
 })();

@@ -22,6 +22,7 @@ final class USMD_Admin {
 	public static function menu() {
 		add_menu_page( __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ), 'dashicons-networking' );
 		add_submenu_page( self::SLUG, __( 'Sites', 'unstoppable-site-manager' ), __( 'Sites', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ) );
+		add_submenu_page( self::SLUG, __( 'Clients', 'unstoppable-site-manager' ), __( 'Clients', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-clients', array( 'USMD_Clients', 'page' ) );
 		add_submenu_page( self::SLUG, __( 'Add Site', 'unstoppable-site-manager' ), __( 'Add Site', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-add', array( __CLASS__, 'page_add' ) );
 		add_submenu_page( self::SLUG, __( 'Client reports', 'unstoppable-site-manager' ), __( 'Reports', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-reports', array( __CLASS__, 'page_reports' ) );
 		add_submenu_page( self::SLUG, __( 'Settings', 'unstoppable-site-manager' ), __( 'Settings', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-settings', array( __CLASS__, 'page_settings' ) );
@@ -107,6 +108,8 @@ final class USMD_Admin {
 				'agency_email'      => '',
 				'thumb_provider' => 'off', // Opt-in: a screenshot service receives each client site's address.
 				'thumb_template' => '',
+				'footer_text'    => '', // Admin footer branding on client sites; empty = off.
+				'footer_url'     => '',
 			)
 		);
 	}
@@ -168,6 +171,8 @@ final class USMD_Admin {
 		$vulns     = USMD_Vulns::enabled() ? USMD_Vulns::count( $site->id ) : 0;
 		$conn_ver  = USMD_Sites::connector_version( $site );
 		$conn_old  = USMD_Sites::connector_state( $site );
+		$clients   = USMD_Clients::names();
+		$client    = ( $site->client_id && isset( $clients[ (int) $site->client_id ] ) ) ? $clients[ (int) $site->client_id ] : '';
 
 		ob_start();
 		?>
@@ -184,7 +189,8 @@ final class USMD_Admin {
 			data-core-update="<?php echo $site->core_update ? 1 : 0; ?>"
 			data-connector="<?php echo esc_attr( $conn_old ); ?>"
 			data-vulns="<?php echo (int) $vulns; ?>"
-			data-search="<?php echo esc_attr( strtolower( $site->name . ' ' . $site->url ) ); ?>"
+			data-client="<?php echo $client ? (int) $site->client_id : 0; ?>"
+			data-search="<?php echo esc_attr( strtolower( $site->name . ' ' . $site->url . ' ' . $client ) ); ?>"
 			<?php if ( USMD_Thumbs::browser_mode() ) : ?>
 				data-thumb-src="<?php echo esc_url( USMD_Thumbs::mshots_url( $site->url ) ); ?>"
 				data-thumb-due="<?php echo $thumb_due ? 1 : 0; ?>"
@@ -222,6 +228,9 @@ final class USMD_Admin {
 					<?php endif; ?>
 				</div>
 				<a class="usmd-card-url" href="<?php echo esc_url( $site->url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $host ); ?></a>
+				<?php if ( $client ) : ?>
+					<span class="usmd-card-client" title="<?php esc_attr_e( 'Client', 'unstoppable-site-manager' ); ?>"><?php echo esc_html( $client ); ?></span>
+				<?php endif; ?>
 				<ul class="usmd-card-meta">
 					<li>WP <?php echo esc_html( $site->wp_version ? $site->wp_version : '?' ); ?></li>
 					<li>PHP <?php echo esc_html( $site->php_version ? $site->php_version : '?' ); ?></li>
@@ -263,7 +272,8 @@ final class USMD_Admin {
 
 	/**
 	 * "Connector 0.1 — update by hand" (link to the site's Upload Plugin screen) or
-	 * "Connector 0.2.0 — push update" (link to Plugins > Add plugin here).
+	 * "Connector 0.7.0: update available" (link to Plugins, where it updates like any plugin;
+	 * FM Connector links to Add plugin, since the new connector has another slug).
 	 */
 	public static function connector_notice( $site, $ver, $state, $context ) {
 		if ( ! $state ) {
@@ -279,7 +289,8 @@ final class USMD_Admin {
 			$title = __( 'This connector can\'t receive plugins from the dashboard. Opens the site\'s Upload Plugin screen: upload the connector ZIP from WordPress.org and choose "Replace current with uploaded". After this one update, connector updates can be pushed from here.', 'unstoppable-site-manager' );
 			$attrs = ' target="_blank" rel="noopener"';
 		} else {
-			$url   = admin_url( 'admin.php?page=usmd-plugins&view=add' );
+			// FM Connector has another slug, so it is replaced from Add plugin; newer ones update like any plugin.
+			$url   = $old_name ? admin_url( 'admin.php?page=usmd-plugins&view=add' ) : admin_url( 'admin.php?page=usmd-plugins' );
 			/* translators: %s: connector version. */
 			$text  = $old_name
 				/* translators: %s: connector version. */
@@ -288,7 +299,7 @@ final class USMD_Admin {
 				: sprintf( __( 'Connector %s: update available', 'unstoppable-site-manager' ), $label );
 			$title = $old_name
 				? __( 'On Plugins > Add plugin, search WordPress.org for Unstoppable Site Connector and install it on this site. It takes over the connection (no re-pairing).', 'unstoppable-site-manager' )
-				: __( 'Update it like any other plugin (it is on WordPress.org), or install Unstoppable Site Connector from Plugins > Add plugin. It replaces the old copy and stays connected.', 'unstoppable-site-manager' );
+				: __( 'It is on WordPress.org, so it updates like any other plugin: Update all on the site, or Update on the Plugins screen. It stays connected.', 'unstoppable-site-manager' );
 			$attrs = '';
 		}
 		printf(
@@ -390,6 +401,24 @@ final class USMD_Admin {
 		?>
 		<div class="usmd-panel usmd-client" id="usmd-client">
 			<h2><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?><?php if ( $saved ) : ?> <span class="usmd-saved"><?php esc_html_e( 'Saved', 'unstoppable-site-manager' ); ?></span><?php endif; ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-site-client">
+				<input type="hidden" name="action" value="usmd_site_client">
+				<input type="hidden" name="site" value="<?php echo (int) $site->id; ?>">
+				<?php wp_nonce_field( 'usmd_site_client' ); ?>
+				<label for="usmd-site-client-<?php echo (int) $site->id; ?>"><?php esc_html_e( 'Belongs to', 'unstoppable-site-manager' ); ?></label>
+				<div class="usmd-site-client-row">
+					<?php echo USMD_Clients::select( 'client_id', (int) $site->client_id, __( 'No client', 'unstoppable-site-manager' ), ' id="usmd-site-client-' . (int) $site->id . '"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+					<input type="text" name="new_client" class="usmd-new-client" placeholder="<?php esc_attr_e( 'or new client name', 'unstoppable-site-manager' ); ?>" aria-label="<?php esc_attr_e( 'New client name', 'unstoppable-site-manager' ); ?>">
+					<?php submit_button( __( 'Set', 'unstoppable-site-manager' ), 'secondary', 'submit', false ); ?>
+				</div>
+				<?php if ( $site->client_id && USMD_Clients::get( $site->client_id ) ) : ?>
+					<p class="usmd-muted"><a href="<?php echo esc_url( USMD_Clients::page_url( array( 'client' => (int) $site->client_id ) ) ); ?>"><?php esc_html_e( 'Edit this client and its branding', 'unstoppable-site-manager' ); ?></a></p>
+				<?php endif; ?>
+				<?php $brand_line = USMD_Branding::describe( $site ); ?>
+				<?php if ( $brand_line ) : ?>
+					<p class="usmd-muted usmd-brand-line"><?php echo esc_html( $brand_line ); ?></p>
+				<?php endif; ?>
+			</form>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-client-form">
 				<input type="hidden" name="action" value="usmd_client">
 				<input type="hidden" name="site" value="<?php echo (int) $site->id; ?>">
@@ -461,8 +490,13 @@ final class USMD_Admin {
 					<tr>
 						<td><a href="<?php echo esc_url( self::site_url( $site->id ) ); ?>"><strong><?php echo esc_html( $site->name ); ?></strong></a><br><span class="usmd-muted"><?php echo esc_html( (string) wp_parse_url( $site->url, PHP_URL_HOST ) ); ?></span></td>
 						<td>
+							<?php $cn = USMD_Clients::names(); ?>
+							<?php if ( $site->client_id && isset( $cn[ (int) $site->client_id ] ) ) : ?>
+								<a class="usmd-report-client" href="<?php echo esc_url( USMD_Clients::page_url( array( 'client' => (int) $site->client_id ) ) ); ?>"><strong><?php echo esc_html( $cn[ (int) $site->client_id ] ); ?></strong></a><br>
+							<?php endif; ?>
 							<?php if ( $site->client_email ) : ?>
 								<?php echo esc_html( $site->client_name ? $site->client_name : '' ); ?><?php echo $site->client_name ? '<br>' : ''; ?><span class="usmd-muted"><?php echo esc_html( $site->client_email ); ?></span>
+								<br><a class="usmd-report-edit" href="<?php echo esc_url( self::site_url( $site->id ) . '#usmd-client' ); ?>"><?php esc_html_e( 'Edit', 'unstoppable-site-manager' ); ?></a>
 							<?php else : ?>
 								<a href="<?php echo esc_url( self::site_url( $site->id ) . '#usmd-client' ); ?>"><?php esc_html_e( 'Add email', 'unstoppable-site-manager' ); ?></a>
 							<?php endif; ?>
@@ -568,7 +602,7 @@ final class USMD_Admin {
 					<small data-stat="connector-manual">
 						<?php
 						/* translators: %d: number of sites. */
-						echo esc_html( $t['connector_manual'] ? sprintf( _n( '%d needs a manual update', '%d need a manual update', $t['connector_manual'], 'unstoppable-site-manager' ), $t['connector_manual'] ) : __( 'update from Add plugin', 'unstoppable-site-manager' ) );
+						echo esc_html( $t['connector_manual'] ? sprintf( _n( '%d needs a manual update', '%d need a manual update', $t['connector_manual'], 'unstoppable-site-manager' ), $t['connector_manual'] ) : __( 'update like any plugin', 'unstoppable-site-manager' ) );
 						?>
 					</small>
 				</button>
@@ -576,6 +610,14 @@ final class USMD_Admin {
 
 			<div class="usmd-toolbar">
 				<input type="search" id="usmd-search" placeholder="Search sites…" class="regular-text">
+				<?php if ( USMD_Clients::names() ) : ?>
+					<?php
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+					$pick = isset( $_GET['client'] ) ? absint( $_GET['client'] ) : 0;
+					?>
+					<label for="usmd-client-filter" class="screen-reader-text"><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?></label>
+					<?php echo USMD_Clients::select( 'client', $pick, __( 'All clients', 'unstoppable-site-manager' ), ' id="usmd-client-filter"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+				<?php endif; ?>
 				<div class="usmd-filters" role="group" aria-label="Filter sites">
 					<button type="button" class="button is-active" data-filter="all">All</button>
 					<button type="button" class="button" data-filter="updates">Needs updates</button>
@@ -586,6 +628,7 @@ final class USMD_Admin {
 					<button type="button" class="button" data-size="s" title="Small cards">S</button>
 					<button type="button" class="button" data-size="m" title="Medium cards">M</button>
 					<button type="button" class="button" data-size="l" title="Large cards">L</button>
+					<button type="button" class="button" data-size="list" title="<?php esc_attr_e( 'List: one row per site, no screenshots', 'unstoppable-site-manager' ); ?>"><span class="dashicons dashicons-list-view" aria-hidden="true"></span><span class="screen-reader-text"><?php esc_html_e( 'List', 'unstoppable-site-manager' ); ?></span></button>
 				</div>
 				<div class="usmd-bulk">
 					<?php if ( 'off' !== USMD_Thumbs::provider() ) : ?>
@@ -680,6 +723,7 @@ final class USMD_Admin {
 				<?php submit_button( 'Connect site' ); ?>
 			</form>
 			<?php USMD_Bulk::box(); ?>
+			<?php USMD_Move::section(); ?>
 		</div>
 		<?php
 	}
@@ -701,6 +745,12 @@ final class USMD_Admin {
 	}
 
 	/* ---------- site detail ---------- */
+
+	/** The connector itself (or the old FM Connector): no deactivate/delete links for it. */
+	private static function is_connector_file( $file ) {
+		$slug = false !== strpos( $file, '/' ) ? dirname( $file ) : preg_replace( '/\.php$/', '', $file );
+		return in_array( $slug, array( 'fm-connector', apply_filters( 'usmd_connector_slug', USMD_CONNECTOR_SLUG ) ), true );
+	}
 
 	public static function page_site( $site ) {
 		$st      = USMD_Sites::status( $site );
@@ -734,6 +784,7 @@ final class USMD_Admin {
 				</div>
 				<div class="usmd-site-actions">
 					<button type="button" class="button usmd-act" data-act="refresh" data-site="<?php echo (int) $site->id; ?>" data-reload="1">Refresh now</button>
+					<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-plugins&view=add&site=' . (int) $site->id ) ); ?>" title="<?php esc_attr_e( 'Install plugins on this site from WordPress.org, a ZIP file or a web address', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'Install plugins', 'unstoppable-site-manager' ); ?></a>
 					<a class="button" href="<?php echo esc_url( self::site_url( $site->id, array( 'view' => 'report' ) ) ); ?>">Client report</a>
 					<a class="button usmd-login" data-site="<?php echo (int) $site->id; ?>" href="<?php echo esc_url( trailingslashit( $site->url ) . 'wp-admin/' ); ?>" target="_blank" rel="noopener" title="<?php esc_attr_e( 'Open WP Admin in a new tab, already signed in', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'WP Admin', 'unstoppable-site-manager' ); ?> ↗</a>
 					<button type="button" class="button button-link-delete usmd-act" data-act="remove" data-site="<?php echo (int) $site->id; ?>">Remove</button>
@@ -779,14 +830,30 @@ final class USMD_Admin {
 							</tbody>
 						</table>
 
-						<h3>Plugins <span class="usmd-muted">(<?php echo count( $plugins ); ?>)</span></h3>
+						<div class="usmd-subhead">
+							<h3>Plugins <span class="usmd-muted">(<?php echo count( $plugins ); ?>)</span></h3>
+							<a class="button button-small" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-plugins&view=add&site=' . (int) $site->id ) ); ?>">+ <?php esc_html_e( 'Add plugin', 'unstoppable-site-manager' ); ?></a>
+						</div>
 						<table class="widefat striped usmd-table">
 							<thead><tr><td class="check-column"></td><th>Plugin</th><th>Installed</th><th>Available</th><th>Status</th></tr></thead>
 							<tbody>
 							<?php foreach ( $plugins as $p ) : ?>
 								<tr>
 									<th class="check-column"><?php if ( ! empty( $p['update'] ) ) : ?><input type="checkbox" class="usmd-item" value="<?php echo esc_attr( 'plugin:' . $p['file'] ); ?>"><?php endif; ?></th>
-									<td><strong><?php echo esc_html( $p['name'] ); ?></strong><br><code class="usmd-muted"><?php echo esc_html( $p['file'] ); ?></code></td>
+									<td>
+										<strong><?php echo esc_html( $p['name'] ); ?></strong><br><code class="usmd-muted"><?php echo esc_html( $p['file'] ); ?></code>
+										<?php if ( ! self::is_connector_file( $p['file'] ) ) : ?>
+											<div class="usmd-row-actions" data-file="<?php echo esc_attr( $p['file'] ); ?>" data-name="<?php echo esc_attr( html_entity_decode( $p['name'], ENT_QUOTES, 'UTF-8' ) ); ?>">
+												<?php if ( ! empty( $p['active'] ) ) : ?>
+													<button type="button" class="button-link usmd-plugin-op" data-op="deactivate"><?php esc_html_e( 'Deactivate', 'unstoppable-site-manager' ); ?></button>
+												<?php else : ?>
+													<button type="button" class="button-link usmd-plugin-op" data-op="activate"><?php esc_html_e( 'Activate', 'unstoppable-site-manager' ); ?></button>
+												<?php endif; ?>
+												<span class="usmd-muted" aria-hidden="true">|</span>
+												<button type="button" class="button-link usmd-plugin-op usmd-link-danger" data-op="delete"><?php esc_html_e( 'Delete', 'unstoppable-site-manager' ); ?></button>
+											</div>
+										<?php endif; ?>
+									</td>
 									<td><?php echo esc_html( $p['version'] ); ?></td>
 									<td><?php echo ! empty( $p['update'] ) ? '<span class="usmd-pill usmd-pill-warn">' . esc_html( $p['update'] ) . '</span>' : '—'; ?></td>
 									<td><?php echo ! empty( $p['active'] ) ? 'Active' : '<span class="usmd-muted">Inactive</span>'; ?><?php echo ! empty( $p['auto_update'] ) ? ' · auto' : ''; ?></td>
@@ -1052,6 +1119,17 @@ final class USMD_Admin {
 						</p>
 					</td></tr>
 				</table>
+				<h2 id="usmd-branding-settings"><?php esc_html_e( 'Client site admin footer', 'unstoppable-site-manager' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><label for="usmd-footer-text"><?php esc_html_e( 'Footer text', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-footer-text" name="footer_text" class="regular-text" maxlength="120" value="<?php echo esc_attr( $s['footer_text'] ); ?>" placeholder="<?php echo esc_attr( sprintf( /* translators: %s: agency name. */ __( 'Website care by %s', 'unstoppable-site-manager' ), $s['agency_name'] ) ); ?>">
+						<p class="description"><?php esc_html_e( 'Shown at the bottom of your client sites\' admin screens instead of "Thank you for creating with WordPress". Only in wp-admin, never on the public site. Leave empty to keep the WordPress text. Needs Unstoppable Site Connector 0.7.0 or newer; each site\'s administrators can switch it off on their side. Clients can have their own text on the Clients screen.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+					<tr><th><label for="usmd-footer-url"><?php esc_html_e( 'Footer link', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-footer-url" name="footer_url" type="url" class="regular-text" value="<?php echo esc_attr( $s['footer_url'] ); ?>" placeholder="https://youragency.com">
+						<p class="description"><?php esc_html_e( 'Optional. The footer text links here.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+				</table>
 				<h2>Screenshots</h2>
 				<table class="form-table" role="presentation">
 					<tr><th>Screenshot service</th><td>
@@ -1102,6 +1180,8 @@ final class USMD_Admin {
 				'agency_email'      => isset( $_POST['agency_email'] ) ? sanitize_email( wp_unslash( $_POST['agency_email'] ) ) : '',
 				'thumb_provider' => isset( $_POST['thumb_provider'] ) && in_array( $_POST['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? sanitize_key( $_POST['thumb_provider'] ) : 'off',
 				'thumb_template' => isset( $_POST['thumb_template'] ) ? esc_url_raw( str_replace( '{url}', 'USMDURLTOKEN', sanitize_text_field( wp_unslash( $_POST['thumb_template'] ) ) ) ) : '',
+				'footer_text'    => isset( $_POST['footer_text'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['footer_text'] ) ), 0, 120 ) : '',
+				'footer_url'     => isset( $_POST['footer_url'] ) ? esc_url_raw( wp_unslash( $_POST['footer_url'] ), array( 'https', 'http' ) ) : '',
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.
@@ -1117,6 +1197,7 @@ final class USMD_Admin {
 				}
 			}
 		}
+		USMD_Branding::queue_all(); // Send changed admin footer branding to the sites it affects.
 		wp_safe_redirect( admin_url( 'admin.php?page=usmd-settings&saved=1' ) );
 		exit;
 	}

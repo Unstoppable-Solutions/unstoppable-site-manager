@@ -83,6 +83,11 @@ final class USMD_Client {
 	 * @return array|WP_Error
 	 */
 	public static function call( $site, $route, array $params = array(), $timeout = 30, $mark_error = true ) {
+		if ( USMD_Move::is_moved() && ! in_array( $route, array( 'handover', 'ping' ), true ) ) {
+			$m = USMD_Move::state();
+			/* translators: %s: new dashboard address. */
+			return new WP_Error( 'usmd_moved', sprintf( __( 'This dashboard was moved to %s. Manage this site there, or cancel the move under Add Site > Move dashboard.', 'unstoppable-site-manager' ), $m['host'] ) );
+		}
 		$user = wp_get_current_user();
 		if ( $user && $user->exists() ) {
 			$params['_by'] = $user->user_login; // Shown in the site's security alerts.

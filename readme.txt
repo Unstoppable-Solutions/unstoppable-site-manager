@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.15.3
+Stable tag: 0.17.3
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -21,6 +21,8 @@ Unstoppable Site Manager turns your own WordPress site into a dashboard for ever
 * **Vulnerability checks** (optional) – flags plugins, themes and WordPress versions with known security problems, using the free WPVulnerability database, with severity and the version that fixes each one.
 * **One-click sign-in** – open any client's wp-admin already signed in. No passwords are stored; each sign-in link works once and expires after 60 seconds.
 * **Client reports** – a monthly Website Care Report for each site, with your logo and brand color: a plain-English health verdict, a health checklist, one tidy line per update, the month's other changes, the other work you did for them and an optional personal note. Print it, save it as PDF, or email it to your client, by hand or automatically each month.
+* **Clients** – group sites under the client they belong to, then refresh, update and pick plugins for just that client's sites. Give each client their own report branding (name, logo, colour, wording, sender) and, if you like, your name in the admin footer of their sites.
+* **Move your dashboard** – moving to a new WordPress install? Take every site, client, setting and report history with you. Each site hands over with a one-time code, and the old dashboard can no longer manage them.
 * **Bulk connect** – moving from MainWP or ManageWP? Make a connector that knows your dashboard, push it to all your sites with that tool's bulk plugin install, and every site connects itself. Upload MainWP's site export to see which ones are still missing.
 * **Security you can check** – a Security screen with a checklist for your dashboard, one-click locking of every client site to your dashboard's address, and per-site permission switches. Details below.
 * **Built not to time out** – bulk jobs run one site at a time from your browser, and a site that fails is reported and skipped. Client sites push their own reports, so your dashboard isn't polling all day.
@@ -90,11 +92,29 @@ This plugin connects to the following services.
 
 == Changelog ==
 
-= 0.15.3 =
-* A site that switches to https (or adds or drops www) is updated on the dashboard automatically, so it no longer shows "No SSL".
+= 0.17.3 =
+* Monthly report emails on big dashboards: sent in batches of up to 50 (or 20 seconds) with a follow-up batch two minutes later, instead of 10 an hour. 339 automatic reports now go out in about half an hour instead of a day and a half.
+* The sent-reports log keeps the last 13 months per site, so it stays small with hundreds of sites.
 
-= 0.15.2 =
-* Fix: typing a client name or report email on a site page while the page was still checking the site no longer gets wiped.
+= 0.17.2 =
+* Old connectors tile and notices: the connector is on WordPress.org, so they now say it updates like any plugin (and link to Plugins) instead of pointing to Add plugin.
+
+= 0.17.1 =
+* Site page: Activate, Deactivate and Delete links under each plugin (hover the row), and an Add plugin button next to the Plugins heading. The connector itself has no links, so it can't be switched off by mistake.
+* Add plugin opened from a site page: the back arrow returns to that site.
+
+= 0.17.0 =
+* Move dashboard (Add Site, below bulk connect): move all your sites, clients, settings and report history to another WordPress install (for example from a test site to its permanent home). Sites hand over with a one-time code that only works for the new address, and the old dashboard can no longer manage them. Needs Unstoppable Site Connector 0.8.0 on each site.
+
+= 0.16.0 =
+* Site page: Install plugins button opens Add plugin with just that site selected.
+* Fix: typing in the Client box on a site page while the page was checking the site no longer gets wiped.
+* Clients: group sites under the client they belong to (Unstoppable Site Manager > Clients, or the Client box on a site page).
+* Pick a client on the Sites screen to see, refresh and update just their sites; the tiles count only their sites too.
+* Pick a client's sites in one click on Plugins and Add plugin.
+* Per-client report branding: agency name, logo, colour, introduction, contact line, email subject and sender. Empty fields use Settings.
+* List view on the Sites screen (the list button next to S, M, L): one row per site, no screenshots. Remembered in your browser.
+* Client site admin footer: your name and link at the bottom of client sites' admin screens instead of "Thank you for creating with WordPress" (Settings, or per client). Needs Unstoppable Site Connector 0.7.0; never shown on the public site, and each site can switch it off.
 
 = 0.15.1 =
 * A dashboard page left open for a day no longer shows every site as failing: when WordPress's security token expires, the page gets a new one and carries on. If you have been signed out, it says so once instead.
@@ -187,6 +207,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.17.3 =
+First release on WordPress.org: clients, per-client branding, plugin actions on each site's page and Move dashboard. Update your sites to Unstoppable Site Connector 0.8.0 to use every feature.
 
 = 0.15.0 =
 Screenshots are now opt-in (Settings > Screenshots). Requires WordPress 6.2.

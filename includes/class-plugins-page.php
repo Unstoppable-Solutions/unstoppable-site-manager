@@ -67,6 +67,7 @@ final class USMD_Plugins_Page {
 				'host'    => (string) wp_parse_url( $s->url, PHP_URL_HOST ),
 				'starred' => ! empty( $s->starred ),
 				'offline' => (bool) $s->last_error,
+				'client'  => (int) $s->client_id,
 			);
 		}
 		return $out;
@@ -120,7 +121,12 @@ final class USMD_Plugins_Page {
 		<div class="wrap usmd-wrap usmd-plugins-page">
 			<div class="usmd-page-head">
 				<?php if ( $add ) : ?>
-					<a class="button usmd-back" href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ); ?>" aria-label="<?php esc_attr_e( 'Back to plugins', 'unstoppable-site-manager' ); ?>">←</a>
+					<?php $usmd_from = isset( $_GET['site'] ) ? USMD_Sites::get( absint( $_GET['site'] ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification -- only picks the back link. ?>
+					<?php if ( $usmd_from ) : ?>
+						<a class="button usmd-back" href="<?php echo esc_url( USMD_Admin::site_url( $usmd_from->id ) ); ?>" aria-label="<?php esc_attr_e( 'Back to the site', 'unstoppable-site-manager' ); ?>">←</a>
+					<?php else : ?>
+						<a class="button usmd-back" href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ); ?>" aria-label="<?php esc_attr_e( 'Back to plugins', 'unstoppable-site-manager' ); ?>">←</a>
+					<?php endif; ?>
 					<h1><?php esc_html_e( 'Plugins', 'unstoppable-site-manager' ); ?> <span class="usmd-muted">›</span> <?php esc_html_e( 'Add plugin', 'unstoppable-site-manager' ); ?></h1>
 				<?php else : ?>
 					<h1><?php esc_html_e( 'Plugins', 'unstoppable-site-manager' ); ?></h1>
@@ -142,6 +148,10 @@ final class USMD_Plugins_Page {
 						<strong id="usmd-picker-count"></strong>
 						<span><button type="button" class="button-link" id="usmd-pick-all"><?php esc_html_e( 'All', 'unstoppable-site-manager' ); ?></button> · <button type="button" class="button-link" id="usmd-pick-none"><?php esc_html_e( 'None', 'unstoppable-site-manager' ); ?></button> · <button type="button" class="button-link" id="usmd-pick-starred"><?php esc_html_e( 'Starred', 'unstoppable-site-manager' ); ?></button></span>
 					</div>
+					<?php if ( USMD_Clients::names() ) : ?>
+						<label for="usmd-pick-client" class="screen-reader-text"><?php esc_html_e( 'Pick a client\'s sites', 'unstoppable-site-manager' ); ?></label>
+						<?php echo USMD_Clients::select( 'pick_client', 0, __( 'Pick a client\'s sites…', 'unstoppable-site-manager' ), ' id="usmd-pick-client" class="widefat"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+					<?php endif; ?>
 					<input type="search" id="usmd-picker-search" class="widefat" placeholder="<?php esc_attr_e( 'Find a site…', 'unstoppable-site-manager' ); ?>">
 					<ul id="usmd-picker-list" class="usmd-picker-list"></ul>
 				</aside>

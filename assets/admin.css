@@ -17,7 +17,7 @@
 .usmd-stat.is-bad strong { color: var(--usmd-bad); }
 .usmd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
 .usmd-filters .button.is-active { background: #2271b1; border-color: #2271b1; color: #fff; }
-.usmd-bulk { margin-left: auto; display: flex; gap: 8px; }
+.usmd-bulk { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; }
 /* progress panel: one site at a time */
 .usmd-progress { background: #fff; border: 1px solid var(--usmd-line); border-left: 4px solid #2271b1; border-radius: 4px; padding: 12px 16px; margin: 0 0 14px; }
 .usmd-progress[hidden] { display: none; }
@@ -538,3 +538,71 @@
 .usmd-bc-log li.is-ok strong { color: #1a7f4b; }
 .usmd-bc-log li.is-bad strong { color: #b32d2e; }
 .usmd-bc-check form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Clients */
+.usmd-card-client { display: inline-block; max-width: 100%; margin-top: 2px; padding: 1px 7px; border-radius: 10px; background: var(--usmd-tint, #eef3fb); color: #2c4a73; font-size: 11px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#usmd-client-filter { max-width: 220px; }
+.usmd-site-client { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--usmd-line); }
+.usmd-site-client label { display: block; font-weight: 600; margin-bottom: 4px; }
+.usmd-site-client-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.usmd-site-client-row select, .usmd-site-client-row .usmd-new-client { flex: 1 1 140px; min-width: 0; }
+.usmd-site-client p { margin: 6px 0 0; }
+.usmd-clients-table { max-width: 900px; margin-top: 12px; }
+.usmd-clients .usmd-empty { background: #fff; border: 1px solid var(--usmd-line); border-radius: 6px; padding: 16px 20px; max-width: 600px; }
+.usmd-cl-sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; max-height: 320px; overflow: auto; padding: 8px 10px; background: #fff; border: 1px solid var(--usmd-line); border-radius: 4px; max-width: 900px; }
+.usmd-cl-sites label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.usmd-cl-delete { margin-top: 8px; }
+#usmd-pick-client { margin-bottom: 6px; }
+.usmd-cl-color { width: 8em; }
+
+/* List view: one row per site, no screenshots (same cards, laid out as rows) */
+.usmd-sizes .button .dashicons { font-size: 16px; width: 16px; height: 16px; vertical-align: text-bottom; }
+.usmd-grid.usmd-size-list { display: flex; flex-direction: column; gap: 0; background: #fff; border: 1px solid var(--usmd-line); border-radius: 4px; overflow: hidden; }
+.usmd-size-list .usmd-card { flex-direction: row; align-items: stretch; border: 0; border-bottom: 1px solid var(--usmd-line); border-left: 3px solid var(--usmd-ok); border-radius: 0; }
+.usmd-size-list .usmd-card:last-child { border-bottom: 0; }
+.usmd-size-list .usmd-card[data-updates]:not([data-updates="0"]) { border-left-color: #dba617; }
+.usmd-size-list .usmd-card.is-problem { border-left-color: var(--usmd-bad); }
+.usmd-size-list .usmd-card-thumb, .usmd-size-list .usmd-retake { display: none; }
+.usmd-size-list .usmd-star { position: static; flex: none; align-self: center; margin-left: 8px; box-shadow: none; background: transparent; opacity: 1; }
+.usmd-size-list .usmd-star[aria-pressed="false"] { color: #dcdcde; }
+.usmd-size-list .usmd-card-body { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 2px; padding: 7px 12px 7px 6px; }
+.usmd-size-list .usmd-card-head { flex: 0 1 260px; justify-content: flex-start; }
+.usmd-size-list .usmd-card-url { flex: 0 1 190px; font-size: 12px; }
+.usmd-size-list .usmd-card-client { flex: none; margin-top: 0; }
+.usmd-size-list .usmd-card-meta { flex: 1 1 260px; margin: 0; font-size: 12px; }
+.usmd-size-list .usmd-card-actions { flex: none; margin: 0 0 0 auto; padding-top: 0; }
+.usmd-size-list .usmd-card-error, .usmd-size-list .usmd-card-vuln, .usmd-size-list .usmd-connector-old { flex-basis: 100%; order: 10; margin: 0; }
+@media (max-width: 782px) {
+	.usmd-size-list .usmd-card-head, .usmd-size-list .usmd-card-url { flex-basis: 100%; }
+	.usmd-size-list .usmd-card-actions { margin-left: 0; }
+}
+
+/* Move dashboard */
+.usmd-move-lead { max-width: 760px; }
+.usmd-move-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; max-width: 1200px; }
+.usmd-move-cols .usmd-panel { min-width: 0; }
+.usmd-move-steps { margin: 0 0 12px 20px; }
+.usmd-move-start { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.usmd-move-start label { flex-basis: 100%; font-weight: 600; }
+.usmd-move-start input[type="url"] { flex: 1 1 240px; min-width: 0; }
+.usmd-move-count { font-size: 14px; }
+.usmd-move-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0; }
+.usmd-move-errors, .usmd-move-list { margin: 8px 0 0; padding: 0; list-style: none; max-height: 360px; overflow: auto; }
+.usmd-move-errors li, .usmd-move-list li { padding: 5px 0; border-bottom: 1px solid var(--usmd-line); font-size: 13px; overflow-wrap: anywhere; }
+.usmd-move-errors li, .usmd-move-list li.is-bad { color: var(--usmd-bad); }
+.usmd-move-list li.is-ok strong { color: var(--usmd-ok); }
+.usmd-move-list li.is-warn { color: var(--usmd-warn); }
+.usmd-bad { color: var(--usmd-bad); }
+.usmd-move { margin-top: 32px; max-width: 1120px; }
+.usmd-move-title { font-size: 1.3em; margin: 0 0 6px; }
+.usmd-move .usmd-panel h3 { margin: 0 0 10px; font-size: 15px; }
+
+/* Site page: plugin row actions */
+.usmd-subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usmd-subhead h3 { margin: 1.4em 0 .6em; }
+.usmd-row-actions { margin-top: 4px; font-size: 12px; visibility: hidden; }
+.usmd-table tr:hover .usmd-row-actions, .usmd-row-actions:focus-within { visibility: visible; }
+.usmd-row-actions .button-link { font-size: 12px; text-decoration: none; }
+.usmd-row-actions .button-link:disabled { opacity: .5; cursor: default; }
+.usmd-row-actions .usmd-link-danger, .usmd-row-actions .usmd-link-danger:hover { color: #b32d2e; }
+@media (hover: none) { .usmd-row-actions { visibility: visible; } }

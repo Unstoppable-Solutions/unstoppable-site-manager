@@ -143,6 +143,7 @@ final class USMD_Security {
 			'install_wporg' => __( 'Install from WordPress.org', 'unstoppable-site-manager' ),
 			'install_zip'   => __( 'Install from ZIP or web address', 'unstoppable-site-manager' ),
 			'delete'        => __( 'Delete plugins', 'unstoppable-site-manager' ),
+			'branding'      => __( 'Admin footer branding', 'unstoppable-site-manager' ),
 		);
 	}
 
@@ -545,7 +546,12 @@ final class USMD_Security {
 						<?php endif; ?>
 					</li>
 					<?php foreach ( self::perm_labels() as $p => $label ) : ?>
-						<?php $on = ! isset( $sec['perms'][ $p ] ) || $sec['perms'][ $p ]; ?>
+						<?php
+						if ( 'branding' === $p && ! isset( $sec['perms'][ $p ] ) ) {
+							continue; // Connectors before 0.7.0 have no branding.
+						}
+						$on = ! isset( $sec['perms'][ $p ] ) || $sec['perms'][ $p ];
+						?>
 						<li>
 							<span><?php echo esc_html( $label ); ?></span>
 							<?php if ( $on ) : ?>

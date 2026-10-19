@@ -32,7 +32,9 @@ final class USMD_Report {
 
 	/** The report's accent colour, from Settings, as CSS for wp_add_inline_style(). */
 	public static function accent_css() {
-		$hex = sanitize_hex_color( USMD_Admin::settings()['report_color'] );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+		$site = isset( $_GET['site'] ) ? USMD_Sites::get( absint( $_GET['site'] ) ) : null;
+		$hex  = sanitize_hex_color( USMD_Clients::settings_for( $site )['report_color'] );
 		$hex = $hex ? $hex : '#1e5aa8';
 		$rgb = sscanf( strlen( $hex ) === 4 ? '#' . $hex[1] . $hex[1] . $hex[2] . $hex[2] . $hex[3] . $hex[3] : $hex, '#%02x%02x%02x' );
 		return sprintf(
@@ -360,7 +362,7 @@ final class USMD_Report {
 		$sum    = self::summarise( array_reverse( $rows ) ); // Oldest first.
 		$work   = USMD_Work::from_rows( $rows );
 		$health = self::health( $site );
-		$s      = USMD_Admin::settings();
+		$s      = USMD_Clients::settings_for( $site ); // Settings, with the client's branding on top.
 		$note   = self::get_note( $site->id, $month );
 		$label  = wp_date( 'F Y', $start->getTimestamp() );
 		$prev   = $start->modify( '-1 month' )->format( 'Y-m' );
