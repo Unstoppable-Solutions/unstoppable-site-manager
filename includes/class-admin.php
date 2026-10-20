@@ -1006,13 +1006,15 @@ final class USMD_Admin {
 				/* translators: %s: username. */
 				return sprintf( __( 'Signed in from the dashboard (one-click login) as %s', 'unstoppable-site-manager' ), $a->object );
 			case 'connector.maintenance_on':
-				return __( 'Maintenance mode switched on from the dashboard', 'unstoppable-site-manager' );
+				return ( isset( $d['template'] ) && 'coming_soon' === $d['template'] )
+					? __( 'Coming soon page switched on from the dashboard', 'unstoppable-site-manager' )
+					: __( 'Maintenance mode switched on from the dashboard', 'unstoppable-site-manager' );
 			case 'connector.maintenance_off':
-				return __( 'Maintenance mode switched off from the dashboard', 'unstoppable-site-manager' );
+				return __( 'Maintenance / coming soon page switched off from the dashboard', 'unstoppable-site-manager' );
 			case 'connector.maintenance_off_here':
-				return __( 'Maintenance mode switched off on the site', 'unstoppable-site-manager' );
+				return __( 'Maintenance / coming soon page switched off on the site', 'unstoppable-site-manager' );
 			case 'connector.maintenance_ended':
-				return __( 'Maintenance mode ended at its set time', 'unstoppable-site-manager' );
+				return __( 'Maintenance / coming soon page ended at its set time', 'unstoppable-site-manager' );
 			case 'connector.paired':
 				return 'Connected to dashboard';
 			case 'connector.unpaired':

@@ -614,3 +614,13 @@
 .usmd-maint.is-on { border-left: 4px solid #dba617; }
 .usmd-maint-form label { display: block; margin: 10px 0 4px; font-weight: 600; }
 .usmd-maint-form select { max-width: 100%; }
+.usmd-maint-templates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+.usmd-maint-form .usmd-maint-tpl { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 8px; border: 2px solid #dcdcde; border-radius: 6px; cursor: pointer; font-weight: 400; }
+.usmd-maint-tpl input { position: absolute; opacity: 0; pointer-events: none; }
+.usmd-maint-tpl:has(input:checked) { border-color: #2271b1; box-shadow: 0 0 0 1px #2271b1; }
+.usmd-maint-tpl:has(input:focus-visible) { outline: 2px solid #2271b1; outline-offset: 2px; }
+.usmd-maint-swatch { display: block; height: 22px; border-radius: 4px; margin-bottom: 4px; background: linear-gradient(#d99a1e 60%, #2f3439 60%); }
+.usmd-maint-tpl.is-coming_soon .usmd-maint-swatch { background: linear-gradient(#1b8aa6 60%, #2f3439 60%); }
+.usmd-maint-tpl small { color: #646970; line-height: 1.35; }
+.usmd-pill-maint.is-coming_soon { background: #e1f3f7; color: #0f5e72; }
+.usmd-maint-tpl { position: relative; }

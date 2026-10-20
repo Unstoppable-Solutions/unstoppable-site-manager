@@ -16,11 +16,36 @@ final class USMD_Maintenance {
 	const MIN_CONNECTOR = '0.9.0';
 	const HOURS         = array( 1, 2, 4, 8, 24, 0 ); // 0 = until switched off.
 
+	/** template => [ label, default heading, default message, default hours ]. */
+	public static function templates() {
+		return array(
+			'maintenance' => array(
+				'label'   => __( 'Maintenance', 'unstoppable-site-manager' ),
+				'title'   => __( 'Down for maintenance', 'unstoppable-site-manager' ),
+				'message' => __( 'We are making some improvements and will be back shortly. Thank you for your patience.', 'unstoppable-site-manager' ),
+				'hours'   => 2,
+				'note'    => __( 'Short work on a live site. Tells search engines it is temporary.', 'unstoppable-site-manager' ),
+			),
+			'coming_soon' => array(
+				'label'   => __( 'Coming soon', 'unstoppable-site-manager' ),
+				'title'   => __( 'Coming soon', 'unstoppable-site-manager' ),
+				'message' => __( 'We are working on our new website. Stay tuned!', 'unstoppable-site-manager' ),
+				'hours'   => 0,
+				'note'    => __( 'A site that hasn\'t launched yet. Kept out of search results.', 'unstoppable-site-manager' ),
+			),
+		);
+	}
+
+	public static function label( $template ) {
+		$t = self::templates();
+		return isset( $t[ $template ] ) ? $t[ $template ]['label'] : $t['maintenance']['label'];
+	}
+
 	public static function hooks() {
 		add_action( 'wp_ajax_usmd_maintenance', array( __CLASS__, 'ajax' ) );
 	}
 
-	/** @return array { on, since, until } from the site's last report. */
+	/** @return array { on, template, since, until } from the site's last report. */
 	public static function state( $site ) {
 		$s = USMD_Sites::status( $site );
 		$m = isset( $s['connector']['maintenance'] ) && is_array( $s['connector']['maintenance'] ) ? $s['connector']['maintenance'] : array();
@@ -30,7 +55,8 @@ final class USMD_Maintenance {
 			$on = false; // It has switched itself off since the last report.
 		}
 		return array(
-			'on'    => $on,
+			'on'       => $on,
+			'template' => isset( $m['template'] ) && 'coming_soon' === $m['template'] ? 'coming_soon' : 'maintenance',
 			'since' => isset( $m['since'] ) ? (int) $m['since'] : 0,
 			'until' => $until,
 		);
@@ -57,7 +83,7 @@ final class USMD_Maintenance {
 		?>
 		<div class="usmd-panel usmd-maint<?php echo $m['on'] ? ' is-on' : ''; ?>" id="usmd-maintenance">
 			<h2><?php esc_html_e( 'Maintenance mode', 'unstoppable-site-manager' ); ?>
-				<span class="usmd-pill <?php echo $m['on'] ? 'usmd-pill-maint' : 'usmd-pill-ok'; ?>"><?php echo $m['on'] ? esc_html__( 'On', 'unstoppable-site-manager' ) : esc_html__( 'Off', 'unstoppable-site-manager' ); ?></span>
+				<span class="usmd-pill <?php echo $m['on'] ? 'usmd-pill-maint is-' . esc_attr( $m['template'] ) : 'usmd-pill-ok'; ?>"><?php echo $m['on'] ? esc_html( self::label( $m['template'] ) ) : esc_html__( 'Off', 'unstoppable-site-manager' ); ?></span>
 			</h2>
 			<?php if ( ! self::supported( $site ) ) : ?>
 				<p class="usmd-muted">
@@ -73,9 +99,10 @@ final class USMD_Maintenance {
 					<?php
 					echo esc_html(
 						$m['since']
-							/* translators: %s: date and time. */
-							? sprintf( __( 'Visitors see a "back soon" page since %s.', 'unstoppable-site-manager' ), self::when( $m['since'] ) )
-							: __( 'Visitors see a "back soon" page.', 'unstoppable-site-manager' )
+							/* translators: 1: template name, 2: date and time. */
+							? sprintf( __( 'Visitors see the %1$s page since %2$s.', 'unstoppable-site-manager' ), strtolower( self::label( $m['template'] ) ), self::when( $m['since'] ) )
+							/* translators: %s: template name. */
+							: sprintf( __( 'Visitors see the %s page.', 'unstoppable-site-manager' ), strtolower( self::label( $m['template'] ) ) )
 					);
 					echo ' ';
 					echo esc_html(
@@ -89,8 +116,19 @@ final class USMD_Maintenance {
 				<p class="usmd-muted"><?php esc_html_e( 'You and other signed-in editors see the site as usual.', 'unstoppable-site-manager' ); ?></p>
 				<button type="button" class="button button-primary usmd-maint-go" data-site="<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>" data-on="0"><?php esc_html_e( 'Turn off', 'unstoppable-site-manager' ); ?></button>
 			<?php else : ?>
-				<p class="usmd-muted"><?php esc_html_e( 'Show visitors a "back soon" page while you work on the site. Signed-in editors still see the site; wp-admin keeps working.', 'unstoppable-site-manager' ); ?></p>
+				<p class="usmd-muted"><?php esc_html_e( 'Show visitors a placeholder page while you work on the site. Signed-in editors still see the site; wp-admin keeps working.', 'unstoppable-site-manager' ); ?></p>
 				<form class="usmd-maint-form" data-site="<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>">
+					<div class="usmd-maint-templates" role="radiogroup" aria-label="<?php esc_attr_e( 'Template', 'unstoppable-site-manager' ); ?>">
+						<?php foreach ( self::templates() as $key => $t ) : ?>
+							<label class="usmd-maint-tpl is-<?php echo esc_attr( $key ); ?>">
+								<input type="radio" name="template" value="<?php echo esc_attr( $key ); ?>" <?php checked( 'maintenance', $key ); ?>
+									data-title="<?php echo esc_attr( $t['title'] ); ?>" data-message="<?php echo esc_attr( $t['message'] ); ?>" data-hours="<?php echo (int) $t['hours']; ?>">
+								<span class="usmd-maint-swatch" aria-hidden="true"></span>
+								<strong><?php echo esc_html( $t['label'] ); ?></strong>
+								<small><?php echo esc_html( $t['note'] ); ?></small>
+							</label>
+						<?php endforeach; ?>
+					</div>
 					<label for="usmd-maint-title-<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>"><?php esc_html_e( 'Heading', 'unstoppable-site-manager' ); ?></label>
 					<input type="text" id="usmd-maint-title-<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>" name="title" class="widefat" maxlength="80" placeholder="<?php esc_attr_e( 'Down for maintenance', 'unstoppable-site-manager' ); ?>">
 					<label for="usmd-maint-message-<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>"><?php esc_html_e( 'Message', 'unstoppable-site-manager' ); ?></label>
@@ -106,7 +144,7 @@ final class USMD_Maintenance {
 							</option>
 						<?php endforeach; ?>
 					</select>
-					<p><button type="submit" class="button usmd-maint-go" data-site="<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>" data-on="1"><?php esc_html_e( 'Turn on maintenance mode', 'unstoppable-site-manager' ); ?></button></p>
+					<p><button type="submit" class="button usmd-maint-go" data-site="<?php echo $id; // phpcs:ignore WordPress.Security.EscapeOutput -- int. ?>" data-on="1"><?php esc_html_e( 'Turn on', 'unstoppable-site-manager' ); ?></button></p>
 				</form>
 			<?php endif; ?>
 		</div>
@@ -115,10 +153,11 @@ final class USMD_Maintenance {
 
 	/** Card pill on the Sites screen. */
 	public static function pill( $site ) {
-		if ( ! self::state( $site )['on'] ) {
+		$m = self::state( $site );
+		if ( ! $m['on'] ) {
 			return '';
 		}
-		return '<span class="usmd-pill usmd-pill-maint" title="' . esc_attr__( 'Maintenance mode is on: visitors see a "back soon" page', 'unstoppable-site-manager' ) . '">' . esc_html__( 'Maintenance', 'unstoppable-site-manager' ) . '</span>';
+		return '<span class="usmd-pill usmd-pill-maint is-' . esc_attr( $m['template'] ) . '" title="' . esc_attr__( 'Visitors see a placeholder page', 'unstoppable-site-manager' ) . '">' . esc_html( self::label( $m['template'] ) ) . '</span>';
 	}
 
 	public static function ajax() {
@@ -137,8 +176,10 @@ final class USMD_Maintenance {
 		}
 		$on     = ! empty( $_POST['on'] );
 		$hours  = isset( $_POST['hours'] ) ? absint( $_POST['hours'] ) : 0;
+		$tpl    = isset( $_POST['template'] ) && 'coming_soon' === $_POST['template'] ? 'coming_soon' : 'maintenance';
 		$params = array(
-			'on'      => $on,
+			'on'       => $on,
+			'template' => $tpl,
 			'title'   => isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '',
 			'message' => isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '',
 			'hours'   => in_array( $hours, self::HOURS, true ) ? $hours : 0,
@@ -156,7 +197,8 @@ final class USMD_Maintenance {
 		wp_send_json_success(
 			array(
 				'on'      => $now,
-				'message' => $now ? __( 'Maintenance mode is on. Visitors see a "back soon" page.', 'unstoppable-site-manager' ) : __( 'Maintenance mode is off. Visitors see the site again.', 'unstoppable-site-manager' ),
+				/* translators: %s: template name. */
+				'message' => $now ? sprintf( __( '%s page is on. Visitors see it instead of the site.', 'unstoppable-site-manager' ), self::label( $tpl ) ) : __( 'Placeholder page is off. Visitors see the site again.', 'unstoppable-site-manager' ),
 			)
 		);
 	}

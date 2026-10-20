@@ -571,8 +571,10 @@
 			data.title = form.elements.title.value;
 			data.message = form.elements.message.value;
 			data.hours = form.elements.hours.value;
+			var tpl = form.querySelector('input[name="template"]:checked');
+			data.template = tpl ? tpl.value : 'maintenance';
 		}
-		if (on && !window.confirm('Turn on maintenance mode? Visitors will see a "back soon" page until it switches off.')) { return; }
+		if (on && !window.confirm('Turn on the ' + (data.template === 'coming_soon' ? 'coming soon' : 'maintenance') + ' page? Visitors will see it instead of the site until it is switched off.')) { return; }
 		sitePageBusy = true;
 		b.disabled = true;
 		siteStatus(on ? 'Turning on maintenance mode…' : 'Turning off maintenance mode…', 'busy');
@@ -582,6 +584,15 @@
 		}).then(function () { sitePageBusy = false; }, function () { sitePageBusy = false; });
 	}
 	document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.usmd-maint-go[data-on="0"]')) { maintenance(e); } });
+	/* Picking a template fills in its wording as placeholders and its usual end time. */
+	document.addEventListener('change', function (e) {
+		var r = e.target;
+		if (!r.matches || !r.matches('.usmd-maint-form input[name="template"]')) { return; }
+		var f = r.form;
+		f.elements.title.placeholder = r.dataset.title;
+		f.elements.message.placeholder = r.dataset.message;
+		f.elements.hours.value = r.dataset.hours;
+	});
 	document.addEventListener('submit', function (e) {
 		if (e.target.classList && e.target.classList.contains('usmd-maint-form')) {
 			e.preventDefault();

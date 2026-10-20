@@ -19,7 +19,7 @@ Unstoppable Site Manager turns your own WordPress site into a dashboard for ever
 * **Updates** – update one plugin on one site, everything on one site, or everything everywhere. Opening a site checks it for updates straight away.
 * **Plugins** – one list of every plugin on every site. Activate, deactivate, update or delete across the sites you pick, or install new plugins from the WordPress.org directory, a URL or a ZIP you drop in.
 * **Vulnerability checks** (optional) – flags plugins, themes and WordPress versions with known security problems, using the free WPVulnerability database, with severity and the version that fixes each one.
-* **Maintenance mode** – put a client site in maintenance mode from its page: visitors see a short "back soon" page with your heading and message, while signed-in editors see the site as usual. Set it to switch off by itself after an hour or a day. Needs Unstoppable Site Connector 0.9.0.
+* **Maintenance mode and Coming soon** – from a site's page, show visitors a Maintenance page ("back soon", tells search engines it's temporary) or a Coming soon page (for a site that hasn't launched, kept out of search), with your own heading and message. Signed-in editors see the site as usual. Maintenance can switch off by itself after an hour or a day. Needs Unstoppable Site Connector 0.9.0.
 * **One-click sign-in** – open any client's wp-admin already signed in. No passwords are stored; each sign-in link works once and expires after 60 seconds.
 * **Client reports** – a monthly Website Care Report for each site, with your logo and brand color: a plain-English health verdict, a health checklist, one tidy line per update, the month's other changes, the other work you did for them and an optional personal note. Print it, save it as PDF, or email it to your client, by hand or automatically each month.
 * **Clients** – group sites under the client they belong to, then refresh, update and pick plugins for just that client's sites. Give each client their own report branding (name, logo, colour, wording, sender) and, if you like, your name in the admin footer of their sites.
@@ -94,7 +94,7 @@ This plugin connects to the following services.
 == Changelog ==
 
 = 0.18.0 =
-* Maintenance mode: switch it on and off from a site's page, with your own heading and message and an optional time to switch off by itself. Sites in maintenance mode show a Maintenance tag on the Sites screen, and switching it on and off is in the activity log and reports. Needs Unstoppable Site Connector 0.9.0; each site can switch it off for the dashboard.
+* Maintenance mode and Coming soon page: pick a template on a site's page, add your own heading and message and an optional time to switch off by itself. Sites showing either page get a Maintenance or Coming soon tag on the Sites screen, and switching it on and off is in the activity log and reports. Needs Unstoppable Site Connector 0.9.0; each site can switch it off for the dashboard.
 
 = 0.17.3 =
 * Monthly report emails on big dashboards: sent in batches of up to 50 (or 20 seconds) with a follow-up batch two minutes later, instead of 10 an hour. 339 automatic reports now go out in about half an hour instead of a day and a half.
@@ -213,7 +213,7 @@ This plugin connects to the following services.
 == Upgrade Notice ==
 
 = 0.18.0 =
-Adds maintenance mode for client sites. Update your sites to Unstoppable Site Connector 0.9.0 to use it.
+Adds maintenance mode and a coming soon page for client sites. Update your sites to Unstoppable Site Connector 0.9.0 to use it.
 
 = 0.17.3 =
 First release on WordPress.org: clients, per-client branding, plugin actions on each site's page and Move dashboard. Update your sites to Unstoppable Site Connector 0.8.0 to use every feature.
