@@ -231,6 +231,7 @@ final class USMD_Admin {
 				<?php if ( $client ) : ?>
 					<span class="usmd-card-client" title="<?php esc_attr_e( 'Client', 'unstoppable-site-manager' ); ?>"><?php echo esc_html( $client ); ?></span>
 				<?php endif; ?>
+				<?php echo USMD_Maintenance::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
 				<ul class="usmd-card-meta">
 					<li>WP <?php echo esc_html( $site->wp_version ? $site->wp_version : '?' ); ?></li>
 					<li>PHP <?php echo esc_html( $site->php_version ? $site->php_version : '?' ); ?></li>
@@ -887,6 +888,7 @@ final class USMD_Admin {
 
 				<aside class="usmd-side">
 					<?php self::client_panel( $site ); ?>
+					<?php USMD_Maintenance::panel( $site ); ?>
 					<?php echo USMD_Security::panel_html( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in panel_html(). ?>
 					<div class="usmd-panel usmd-shot-panel"
 						<?php if ( USMD_Thumbs::browser_mode() ) : ?>
@@ -1003,6 +1005,14 @@ final class USMD_Admin {
 			case 'user.dashboard_login':
 				/* translators: %s: username. */
 				return sprintf( __( 'Signed in from the dashboard (one-click login) as %s', 'unstoppable-site-manager' ), $a->object );
+			case 'connector.maintenance_on':
+				return __( 'Maintenance mode switched on from the dashboard', 'unstoppable-site-manager' );
+			case 'connector.maintenance_off':
+				return __( 'Maintenance mode switched off from the dashboard', 'unstoppable-site-manager' );
+			case 'connector.maintenance_off_here':
+				return __( 'Maintenance mode switched off on the site', 'unstoppable-site-manager' );
+			case 'connector.maintenance_ended':
+				return __( 'Maintenance mode ended at its set time', 'unstoppable-site-manager' );
 			case 'connector.paired':
 				return 'Connected to dashboard';
 			case 'connector.unpaired':

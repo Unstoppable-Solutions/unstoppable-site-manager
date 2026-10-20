@@ -606,3 +606,11 @@
 .usmd-row-actions .button-link:disabled { opacity: .5; cursor: default; }
 .usmd-row-actions .usmd-link-danger, .usmd-row-actions .usmd-link-danger:hover { color: #b32d2e; }
 @media (hover: none) { .usmd-row-actions { visibility: visible; } }
+
+/* Maintenance mode */
+.usmd-pill-maint { background: #fcf0e3; color: #8a4b00; }
+.usmd-card .usmd-pill-maint { display: inline-block; margin: 4px 0 0; font-size: 11px; }
+.usmd-maint h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.usmd-maint.is-on { border-left: 4px solid #dba617; }
+.usmd-maint-form label { display: block; margin: 10px 0 4px; font-weight: 600; }
+.usmd-maint-form select { max-width: 100%; }

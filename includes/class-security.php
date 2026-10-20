@@ -144,6 +144,7 @@ final class USMD_Security {
 			'install_zip'   => __( 'Install from ZIP or web address', 'unstoppable-site-manager' ),
 			'delete'        => __( 'Delete plugins', 'unstoppable-site-manager' ),
 			'branding'      => __( 'Admin footer branding', 'unstoppable-site-manager' ),
+			'maintenance'   => __( 'Maintenance mode', 'unstoppable-site-manager' ),
 		);
 	}
 

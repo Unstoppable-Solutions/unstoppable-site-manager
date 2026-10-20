@@ -560,6 +560,35 @@
 	initSitePage();
 	if (document.querySelector('.usmd-site')) { refreshSitePage(); }
 
+	/* Site page: maintenance mode on/off (delegated: the page is swapped on reload). */
+	function maintenance(e) {
+		var b = e.target.closest && e.target.closest('.usmd-maint-go');
+		if (!b) { return; }
+		e.preventDefault();
+		if (sitePageBusy) { siteStatus('Still working on this site. Try again in a moment.', 'busy'); return; }
+		var on = b.dataset.on === '1', form = b.closest('form'), data = { site: b.dataset.site, on: on ? 1 : 0 };
+		if (on && form) {
+			data.title = form.elements.title.value;
+			data.message = form.elements.message.value;
+			data.hours = form.elements.hours.value;
+		}
+		if (on && !window.confirm('Turn on maintenance mode? Visitors will see a "back soon" page until it switches off.')) { return; }
+		sitePageBusy = true;
+		b.disabled = true;
+		siteStatus(on ? 'Turning on maintenance mode…' : 'Turning off maintenance mode…', 'busy');
+		post('maintenance', data).then(function (res) {
+			var msg = res.success ? { text: res.data.message, kind: 'ok' } : { text: 'Could not change maintenance mode: ' + ((res.data && res.data.message) || 'unknown error'), kind: 'bad' };
+			return reloadSitePage(msg);
+		}).then(function () { sitePageBusy = false; }, function () { sitePageBusy = false; });
+	}
+	document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.usmd-maint-go[data-on="0"]')) { maintenance(e); } });
+	document.addEventListener('submit', function (e) {
+		if (e.target.classList && e.target.classList.contains('usmd-maint-form')) {
+			e.preventDefault();
+			maintenance({ target: e.target.querySelector('.usmd-maint-go'), preventDefault: function () {} });
+		}
+	});
+
 	/* Site page: Activate / Deactivate / Delete one plugin on this site (delegated: the page is swapped on reload). */
 	document.addEventListener('click', function (e) {
 		var b = e.target.closest && e.target.closest('.usmd-plugin-op');
