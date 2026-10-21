@@ -1,0 +1,49 @@
+name: Deploy to WordPress.org
+
+# This workflow is dormant until Unstoppable Site Manager is accepted
+# into the WordPress.org plugin directory. It will fail with a clear
+# SVN checkout error if a release is published before then — expected
+# and harmless.
+#
+# Once accepted:
+#   1. Make sure SVN_USERNAME and SVN_PASSWORD secrets are set in
+#      repo Settings → Secrets and variables → Actions.
+#   2. Create a GitHub Release tagged vX.Y.Z — this workflow fires
+#      automatically and deploys to WordPress.org SVN.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Manual trigger — specify the tag to deploy (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Push to WordPress.org SVN
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: WordPress Plugin Deploy
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: unstoppable-site-manager
+
+      - name: Upload release zip as a GitHub Release asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.deploy.outputs.zip-path }}

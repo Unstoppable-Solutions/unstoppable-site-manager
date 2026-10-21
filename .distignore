@@ -1,0 +1,52 @@
+# Files that should NOT be shipped to WordPress.org SVN.
+# Read by 10up/action-wordpress-plugin-deploy.
+
+# Repo metadata
+.git
+.github
+.gitignore
+.distignore
+.gitattributes
+
+# GitHub-only files (users on WP.org read readme.txt, not README.md)
+README.md
+SECURITY.md
+CONTRIBUTING.md
+
+# Dev / build artifacts
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+node_modules
+vendor
+composer.lock
+composer.json
+package.json
+package-lock.json
+yarn.lock
+
+# Test harness
+tests
+phpunit.xml
+phpunit.xml.dist
+phpcs.xml
+phpcs.xml.dist
+.phpcs.xml
+.phpcs.xml.dist
+phpstan.neon
+phpstan.neon.dist
+.phpunit.result.cache
+
+# Local env
+.env
+.env.local
+wp-cli.local.yml
+
+# Documentation sources (readme.txt is what WP.org reads)
+CHANGELOG.md
+LICENSE
+LICENSE.txt
