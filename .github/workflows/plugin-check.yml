@@ -25,5 +25,14 @@ jobs:
           build-dir: './'
           exclude-checks: |
             late_escaping
-            hidden_files
+          exclude-files: |
+            .gitattributes
+            .gitignore
+            .distignore
+            .github
+            README.md
+            SECURITY.md
+            CONTRIBUTING.md
+            CHANGELOG.md
           include-experimental: true
+
