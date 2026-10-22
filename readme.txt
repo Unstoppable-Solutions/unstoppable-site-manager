@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.18.0
+Stable tag: 0.19.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -26,6 +26,7 @@ Unstoppable Site Manager turns your own WordPress site into a dashboard for ever
 * **Move your dashboard** – moving to a new WordPress install? Take every site, client, setting and report history with you. Each site hands over with a one-time code, and the old dashboard can no longer manage them.
 * **Bulk connect** – moving from MainWP or ManageWP? Make a connector that knows your dashboard, push it to all your sites with that tool's bulk plugin install, and every site connects itself. Upload MainWP's site export to see which ones are still missing.
 * **Security you can check** – a Security screen with a checklist for your dashboard, one-click locking of every client site to your dashboard's address, and per-site permission switches. Details below.
+* **Background checks and a daily email** – while you're away, the dashboard checks every site for new updates, daily or every 6 hours, one site at a time. Optionally, a morning email lists only what needs you: known vulnerabilities, sites not answering, SSL certificates about to expire, sites left in maintenance mode, and pending updates.
 * **Built not to time out** – bulk jobs run one site at a time from your browser, and a site that fails is reported and skipped. Client sites push their own reports, so your dashboard isn't polling all day.
 
 **How it differs from other site managers**
@@ -92,6 +93,10 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.19.0 =
+* Background update check (Settings > Background checks and daily email): the same fresh check as Refresh now, on every site, one at a time, daily (finishing before your morning email) or every 6 hours. On by default (daily); no browser tab needed.
+* Daily "needs attention" email (off until you switch it on): known vulnerabilities, sites not answering, SSL certificates expiring within 14 days, sites left in maintenance mode for over a day, and pending updates. Pick the hour and the address; nothing to report, no email. "Send a test email now" shows what it looks like.
 
 = 0.18.0 =
 * Maintenance mode and Coming soon page: pick a template on a site's page, add your own heading and message and an optional time to switch off by itself. Sites showing either page get a Maintenance or Coming soon tag on the Sites screen, and switching it on and off is in the activity log and reports. Needs Unstoppable Site Connector 0.9.0; each site can switch it off for the dashboard.
@@ -211,6 +216,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.19.0 =
+Adds a daily background update check and an optional morning "needs attention" email (Settings > Background checks and daily email).
 
 = 0.18.0 =
 Adds maintenance mode and a coming soon page for client sites. Update your sites to Unstoppable Site Connector 0.9.0 to use it.

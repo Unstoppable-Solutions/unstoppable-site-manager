@@ -110,6 +110,10 @@ final class USMD_Admin {
 				'thumb_template' => '',
 				'footer_text'    => '', // Admin footer branding on client sites; empty = off.
 				'footer_url'     => '',
+				'bg_check'       => 'daily', // Fresh update check of every site in the background: daily, 6h or off.
+				'digest'         => 0,       // Daily "needs attention" email: opt-in.
+				'digest_email'   => '',
+				'digest_hour'    => 7,
 			)
 		);
 	}
@@ -1142,6 +1146,62 @@ final class USMD_Admin {
 						<p class="description"><?php esc_html_e( 'Optional. The footer text links here.', 'unstoppable-site-manager' ); ?></p>
 					</td></tr>
 				</table>
+				<h2 id="usmd-watch"><?php esc_html_e( 'Background checks and daily email', 'unstoppable-site-manager' ); ?></h2>
+				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only. ?>
+				<?php $usmd_digest_msg = isset( $_GET['digest'] ) ? sanitize_key( $_GET['digest'] ) : ''; ?>
+				<?php if ( 'sent' === $usmd_digest_msg ) : ?>
+					<div class="notice notice-success inline"><p>
+						<?php
+						/* translators: %s: email address. */
+						echo esc_html( sprintf( __( 'Test email sent to %s.', 'unstoppable-site-manager' ), USMD_Watch::recipient() ) );
+						?>
+					</p></div>
+				<?php elseif ( 'failed' === $usmd_digest_msg ) : ?>
+					<div class="notice notice-error inline"><p><?php esc_html_e( 'WordPress could not send the email. Check this site\'s mail setup (an SMTP plugin usually fixes this).', 'unstoppable-site-manager' ); ?></p></div>
+				<?php endif; ?>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Background update check', 'unstoppable-site-manager' ); ?></th><td>
+						<fieldset>
+							<label><input type="radio" name="bg_check" value="daily" <?php checked( $s['bg_check'], 'daily' ); ?>> <?php esc_html_e( 'Daily, finished before your morning email', 'unstoppable-site-manager' ); ?></label><br>
+							<label><input type="radio" name="bg_check" value="6h" <?php checked( $s['bg_check'], '6h' ); ?>> <?php esc_html_e( 'Every 6 hours', 'unstoppable-site-manager' ); ?></label><br>
+							<label><input type="radio" name="bg_check" value="off" <?php checked( $s['bg_check'], 'off' ); ?>> <?php esc_html_e( 'Off (sites still report in every hour)', 'unstoppable-site-manager' ); ?></label>
+						</fieldset>
+						<p class="description"><?php esc_html_e( 'Runs the same fresh check as "Refresh now" on every site, one at a time, while you are away. No browser tab needs to be open. Sites already report every hour, but WordPress only asks WordPress.org for new versions about twice a day; this catches new releases and security fixes sooner.', 'unstoppable-site-manager' ); ?></p>
+						<?php
+						$usmd_bg_last = (int) get_option( USMD_Watch::OPT_LAST );
+						if ( $usmd_bg_last ) :
+							?>
+							<p class="description">
+								<?php
+								/* translators: %s: time ago. */
+								echo esc_html( sprintf( __( 'Last background check started %s ago.', 'unstoppable-site-manager' ), human_time_diff( $usmd_bg_last ) ) );
+								?>
+							</p>
+						<?php endif; ?>
+					</td></tr>
+					<tr><th><?php esc_html_e( 'Daily email', 'unstoppable-site-manager' ); ?></th><td>
+						<label><input type="checkbox" name="digest" value="1" <?php checked( ! empty( $s['digest'] ) ); ?>> <?php esc_html_e( 'Email me once a day with what needs attention', 'unstoppable-site-manager' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Known vulnerabilities, sites not answering, SSL certificates expiring within 14 days, sites left in maintenance mode for over a day, and pending updates. No email on days when there is nothing to report.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+					<tr><th><label for="usmd-digest-hour"><?php esc_html_e( 'Send at', 'unstoppable-site-manager' ); ?></label></th><td>
+						<select id="usmd-digest-hour" name="digest_hour">
+							<?php for ( $usmd_h = 0; $usmd_h < 24; $usmd_h++ ) : ?>
+								<option value="<?php echo (int) $usmd_h; ?>" <?php selected( (int) $s['digest_hour'], $usmd_h ); ?>><?php echo esc_html( wp_date( get_option( 'time_format' ), gmmktime( $usmd_h, 0, 0, 1, 1, 2024 ), new DateTimeZone( 'UTC' ) ) ); ?></option>
+							<?php endfor; ?>
+						</select>
+						<p class="description">
+							<?php
+							/* translators: %s: time zone name. */
+							echo esc_html( sprintf( __( 'This site\'s time zone (%s). The daily background check starts three hours earlier.', 'unstoppable-site-manager' ), wp_timezone_string() ) );
+							?>
+						</p>
+					</td></tr>
+					<tr><th><label for="usmd-digest-email"><?php esc_html_e( 'Send to', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-digest-email" name="digest_email" type="email" class="regular-text" value="<?php echo esc_attr( $s['digest_email'] ); ?>" placeholder="<?php echo esc_attr( USMD_Admin::agency_email() ); ?>">
+						<p class="description"><?php esc_html_e( 'Leave empty to use your email from Client reports.', 'unstoppable-site-manager' ); ?></p>
+						<p><button type="submit" class="button" form="usmd-digest-test"><?php esc_html_e( 'Send a test email now', 'unstoppable-site-manager' ); ?></button></p>
+					</td></tr>
+				</table>
 				<h2>Screenshots</h2>
 				<table class="form-table" role="presentation">
 					<tr><th>Screenshot service</th><td>
@@ -1163,6 +1223,10 @@ final class USMD_Admin {
 					<tr><th>Push URL</th><td><code><?php echo esc_html( USMD_Receiver::push_url() ); ?></code><p class="description">Client sites send their reports here. It must be reachable from the internet on port 80, 443 or 8080.</p></td></tr>
 				</table>
 				<?php submit_button(); ?>
+			</form>
+			<form id="usmd-digest-test" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="usmd_digest_test">
+				<?php wp_nonce_field( 'usmd_digest_test' ); ?>
 			</form>
 		</div>
 		<?php
@@ -1194,6 +1258,10 @@ final class USMD_Admin {
 				'thumb_template' => isset( $_POST['thumb_template'] ) ? esc_url_raw( str_replace( '{url}', 'USMDURLTOKEN', sanitize_text_field( wp_unslash( $_POST['thumb_template'] ) ) ) ) : '',
 				'footer_text'    => isset( $_POST['footer_text'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['footer_text'] ) ), 0, 120 ) : '',
 				'footer_url'     => isset( $_POST['footer_url'] ) ? esc_url_raw( wp_unslash( $_POST['footer_url'] ), array( 'https', 'http' ) ) : '',
+				'bg_check'       => isset( $_POST['bg_check'] ) && in_array( $_POST['bg_check'], array( 'daily', '6h', 'off' ), true ) ? sanitize_key( $_POST['bg_check'] ) : 'daily',
+				'digest'         => empty( $_POST['digest'] ) ? 0 : 1,
+				'digest_email'   => isset( $_POST['digest_email'] ) ? sanitize_email( wp_unslash( $_POST['digest_email'] ) ) : '',
+				'digest_hour'    => isset( $_POST['digest_hour'] ) ? min( 23, absint( $_POST['digest_hour'] ) ) : 7,
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.
