@@ -624,3 +624,4 @@
 .usmd-maint-tpl small { color: #646970; line-height: 1.35; }
 .usmd-pill-maint.is-coming_soon { background: #e1f3f7; color: #0f5e72; }
 .usmd-maint-tpl { position: relative; }
+.usmd-card .usmd-pill-down, .usmd-card .usmd-pill-maint { display: inline-block; align-self: flex-start; width: auto; margin: 4px 4px 0 0; font-size: 11px; }

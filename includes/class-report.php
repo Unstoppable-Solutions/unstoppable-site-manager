@@ -278,7 +278,8 @@ final class USMD_Report {
 	/**
 	 * Health checklist. Each item: label, value, state (ok | warn | bad).
 	 */
-	public static function health( $site ) {
+	/** @param int[]|null $period [ from, to ] timestamps of the report month, for the uptime line. */
+	public static function health( $site, $period = null ) {
 		$st    = USMD_Sites::status( $site );
 		$ssl   = isset( $st['ssl'] ) ? $st['ssl'] : array();
 		$core  = isset( $st['core']['update'] ) ? (string) $st['core']['update'] : '';
@@ -308,6 +309,14 @@ final class USMD_Report {
 		} else {
 			$days    = (int) $ssl['days_left'];
 			$items[] = array( __( 'Security certificate (SSL)', 'unstoppable-site-manager' ), sprintf( /* translators: %d: days. */ _n( 'Valid for %d more day', 'Valid for %d more days', $days, 'unstoppable-site-manager' ), $days ), $days < USMD_Admin::SSL_WARN_DAYS ? 'warn' : 'ok' );
+		}
+
+		if ( USMD_Monitor::enabled() && $period ) {
+			$pct = USMD_Monitor::uptime_percent( $site->id, $period[0], $period[1] );
+			if ( null !== $pct ) {
+				/* translators: %s: percent. */
+				$items[] = array( __( 'Uptime', 'unstoppable-site-manager' ), sprintf( __( '%s%% of the time this month', 'unstoppable-site-manager' ), USMD_Monitor::fmt_pct( $pct ) ), $pct >= 99.5 ? 'ok' : ( $pct >= 98 ? 'warn' : 'bad' ) );
+			}
 		}
 
 		$pending = (int) $site->updates;
@@ -361,7 +370,7 @@ final class USMD_Report {
 		);
 		$sum    = self::summarise( array_reverse( $rows ) ); // Oldest first.
 		$work   = USMD_Work::from_rows( $rows );
-		$health = self::health( $site );
+		$health = self::health( $site, array( $start->getTimestamp(), $end->getTimestamp() ) );
 		$s      = USMD_Clients::settings_for( $site ); // Settings, with the client's branding on top.
 		$note   = self::get_note( $site->id, $month );
 		$label  = wp_date( 'F Y', $start->getTimestamp() );

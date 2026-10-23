@@ -334,7 +334,7 @@
 			t.plugins += p; t.pluginSites += p ? 1 : 0;
 			t.themes += th; t.themeSites += th ? 1 : 0;
 			t.core += c.dataset.coreUpdate === '1' ? 1 : 0;
-			t.errors += c.classList.contains('is-problem') && c.querySelector('.usmd-card-error') ? 1 : 0;
+			t.errors += c.classList.contains('is-problem') && c.querySelector('.usmd-card-error, .usmd-pill-down') ? 1 : 0;
 			t.conn += c.dataset.connector ? 1 : 0;
 			t.connManual += c.dataset.connector === 'manual' ? 1 : 0;
 			var vn = parseInt(c.dataset.vulns, 10) || 0;

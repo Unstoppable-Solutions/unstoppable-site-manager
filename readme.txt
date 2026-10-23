@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.19.0
+Stable tag: 0.20.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -26,6 +26,8 @@ Unstoppable Site Manager turns your own WordPress site into a dashboard for ever
 * **Move your dashboard** – moving to a new WordPress install? Take every site, client, setting and report history with you. Each site hands over with a one-time code, and the old dashboard can no longer manage them.
 * **Bulk connect** – moving from MainWP or ManageWP? Make a connector that knows your dashboard, push it to all your sites with that tool's bulk plugin install, and every site connects itself. Upload MainWP's site export to see which ones are still missing.
 * **Security you can check** – a Security screen with a checklist for your dashboard, one-click locking of every client site to your dashboard's address, and per-site permission switches. Details below.
+* **Uptime monitoring** – every 5, 15 or 30 minutes the dashboard checks that each site answers, emails you when one goes down and again when it's back (with how long it was down), and shows uptime on each site page and in client reports.
+* **SSL and domain expiry alerts** – a daily check of each site's SSL certificate, and (optional) its domain registration date, with emails before either runs out.
 * **Background checks and a daily email** – while you're away, the dashboard checks every site for new updates, daily or every 6 hours, one site at a time. Optionally, a morning email lists only what needs you: known vulnerabilities, sites not answering, SSL certificates about to expire, sites left in maintenance mode, and pending updates.
 * **Built not to time out** – bulk jobs run one site at a time from your browser, and a site that fails is reported and skipped. Client sites push their own reports, so your dashboard isn't polling all day.
 
@@ -80,6 +82,10 @@ This plugin connects to the following services.
 
 **Your client sites (Unstoppable Site Connector).** To show status, run updates, manage plugins and sign you in, the dashboard sends signed requests to each client site you paired, and receives status reports from them. Nothing is sent to Unstoppable Solutions.
 
+**Your client sites, directly (uptime and SSL checks).** Every few minutes (Settings > Uptime and expiry alerts; can be switched off) the dashboard loads each client site's home page to see whether it answers, and once a day it reads the site's SSL certificate. These requests go only to your own client sites.
+
+**RDAP domain lookups via rdap.org** (optional, off until you turn on Domain expiry in Settings). To warn you before a client's domain registration runs out, each domain name (only the name, for example example.com) is sent to `https://rdap.org/`, which forwards the request to that domain's registry; the registry returns the public registration record. Once a week per domain, daily in the last 30 days. [rdap.org](https://about.rdap.org/), operated by Gavin Brown under the [ICANN RDAP framework](https://www.icann.org/rdap).
+
 **WordPress.com mShots** (optional screenshot service, off by default; turn it on under Settings > Screenshots). Only when you turn it on, the public address of each client site is sent to `https://s0.wp.com/mshots/v1/` to show a thumbnail of its home page (when a site is added and weekly). Provided by Automattic: [Terms of Service](https://wordpress.com/tos/), [Privacy Policy](https://automattic.com/privacy/).
 
 **A screenshot service of your choice** (optional). If you enter your own screenshot API address in Settings, client site addresses are sent to it instead. That service's own terms apply.
@@ -93,6 +99,13 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.20.0 =
+* Uptime monitoring (Settings > Uptime and expiry alerts): the dashboard checks every site's home page every 5 minutes (or 15 or 30, or off), twenty at a time. Two failures in a row mark a site Down: a Down tag on its card, an email, and an entry in its activity log; another email when it's back, with how long it was down. A 503 during maintenance mode counts as up, and when most sites fail at once (the dashboard's own connection) no alerts go out.
+* Uptime on the site page (response time, last 30 days) and an Uptime line in client reports.
+* SSL expiry alerts: once a day the dashboard reads each site's certificate as a visitor would, and emails you at 14, 7, 3 and 1 days and if it expires.
+* Domain expiry alerts (off until you turn them on): registration expiry dates from public RDAP data, emails at 30, 14, 7 and 1 days.
+* The daily email now includes sites that are down and domains expiring within 30 days.
 
 = 0.19.0 =
 * Background update check (Settings > Background checks and daily email): the same fresh check as Refresh now, on every site, one at a time, daily (finishing before your morning email) or every 6 hours. On by default (daily); no browser tab needed.
@@ -216,6 +229,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.20.0 =
+Adds uptime monitoring with down and back-up emails, SSL expiry alerts and optional domain expiry alerts (Settings > Uptime and expiry alerts). Uptime checks start automatically every 5 minutes.
 
 = 0.19.0 =
 Adds a daily background update check and an optional morning "needs attention" email (Settings > Background checks and daily email).

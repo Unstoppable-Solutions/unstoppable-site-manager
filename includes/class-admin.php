@@ -114,6 +114,10 @@ final class USMD_Admin {
 				'digest'         => 0,       // Daily "needs attention" email: opt-in.
 				'digest_email'   => '',
 				'digest_hour'    => 7,
+				'uptime'         => '5',  // Minutes between uptime checks: 5, 15, 30 or off.
+				'uptime_alerts'  => 1,
+				'expiry_alerts'  => 1,    // SSL (and domain, when on) renewal emails.
+				'domain_check'   => 0,    // Opt-in: domain names are looked up at rdap.org.
 			)
 		);
 	}
@@ -165,7 +169,7 @@ final class USMD_Admin {
 		$ssl     = null === $site->ssl_days ? null : (int) $site->ssl_days;
 		$https   = 0 === strpos( $site->url, 'https://' );
 		$stale   = ! $site->last_seen || ( time() - strtotime( $site->last_seen . ' UTC' ) ) > DAY_IN_SECONDS;
-		$problem = $site->last_error || $stale;
+		$problem = $site->last_error || $stale || USMD_Monitor::is_down( $site->id );
 		$ssl_bad = ! $https || ( null !== $ssl && $ssl < self::SSL_WARN_DAYS );
 
 		$thumb     = USMD_Thumbs::url( $site );
@@ -235,6 +239,7 @@ final class USMD_Admin {
 				<?php if ( $client ) : ?>
 					<span class="usmd-card-client" title="<?php esc_attr_e( 'Client', 'unstoppable-site-manager' ); ?>"><?php echo esc_html( $client ); ?></span>
 				<?php endif; ?>
+				<?php echo USMD_Monitor::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
 				<?php echo USMD_Maintenance::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
 				<ul class="usmd-card-meta">
 					<li>WP <?php echo esc_html( $site->wp_version ? $site->wp_version : '?' ); ?></li>
@@ -540,7 +545,7 @@ final class USMD_Admin {
 			$t['themes']       += (int) $s->theme_updates;
 			$t['theme_sites']  += $s->theme_updates ? 1 : 0;
 			$t['core_sites']   += $s->core_update ? 1 : 0;
-			$t['errors']       += $s->last_error ? 1 : 0;
+			$t['errors']       += ( $s->last_error || USMD_Monitor::is_down( $s->id ) ) ? 1 : 0;
 			$cs                 = USMD_Sites::connector_state( $s );
 			$t['connector']        += $cs ? 1 : 0;
 			$t['connector_manual'] += 'manual' === $cs ? 1 : 0;
@@ -597,7 +602,7 @@ final class USMD_Admin {
 						<small data-stat="vuln-sites"><?php echo esc_html( $on( $t['vuln_sites'] ) ); ?></small>
 					</button>
 				<?php endif; ?>
-				<button type="button" class="usmd-stat usmd-stat-errors<?php echo $t['errors'] ? ' is-bad' : ''; ?>" data-filter="problem" title="<?php esc_attr_e( 'Show sites with connection problems', 'unstoppable-site-manager' ); ?>">
+				<button type="button" class="usmd-stat usmd-stat-errors<?php echo $t['errors'] ? ' is-bad' : ''; ?>" data-filter="problem" title="<?php esc_attr_e( 'Show sites that are down or not reporting', 'unstoppable-site-manager' ); ?>">
 					<strong data-stat="errors"><?php echo (int) $t['errors']; ?></strong>
 					<span><?php esc_html_e( 'Connection problems', 'unstoppable-site-manager' ); ?></span>
 				</button>
@@ -936,6 +941,9 @@ final class USMD_Admin {
 								}
 								?>
 							</dd>
+							<?php foreach ( USMD_Monitor::health_rows( $site ) as $usmd_row ) : ?>
+								<dt><?php echo esc_html( $usmd_row[0] ); ?></dt><dd class="<?php echo esc_attr( $usmd_row[2] ? 'is-' . $usmd_row[2] : '' ); ?>"><?php echo esc_html( $usmd_row[1] ); ?></dd>
+							<?php endforeach; ?>
 							<dt>Admins</dt><dd><?php echo esc_html( isset( $env['admin_count'] ) ? $env['admin_count'] : '?' ); ?></dd>
 							<dt>Debug mode</dt><dd><?php echo ! empty( $env['debug'] ) ? '<span class="is-bad">On</span>' : 'Off'; ?></dd>
 							<dt>Remote updates</dt><dd><?php echo ( isset( $env['filesystem_method'] ) && 'direct' !== $env['filesystem_method'] ) ? '<span class="is-bad">Blocked (needs FTP)</span>' : 'Available'; ?></dd>
@@ -1009,6 +1017,12 @@ final class USMD_Admin {
 			case 'user.dashboard_login':
 				/* translators: %s: username. */
 				return sprintf( __( 'Signed in from the dashboard (one-click login) as %s', 'unstoppable-site-manager' ), $a->object );
+			case 'uptime.down':
+				/* translators: %s: reason. */
+				return sprintf( __( 'Site went down: %s', 'unstoppable-site-manager' ), isset( $d['error'] ) ? $d['error'] : '' );
+			case 'uptime.up':
+				/* translators: %s: duration. */
+				return sprintf( __( 'Site back up after %s', 'unstoppable-site-manager' ), USMD_Monitor::duration( isset( $d['down_for'] ) ? $d['down_for'] : 0 ) );
 			case 'connector.maintenance_on':
 				return ( isset( $d['template'] ) && 'coming_soon' === $d['template'] )
 					? __( 'Coming soon page switched on from the dashboard', 'unstoppable-site-manager' )
@@ -1202,6 +1216,36 @@ final class USMD_Admin {
 						<p><button type="submit" class="button" form="usmd-digest-test"><?php esc_html_e( 'Send a test email now', 'unstoppable-site-manager' ); ?></button></p>
 					</td></tr>
 				</table>
+				<h2 id="usmd-monitor"><?php esc_html_e( 'Uptime and expiry alerts', 'unstoppable-site-manager' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Uptime monitoring', 'unstoppable-site-manager' ); ?></th><td>
+						<select name="uptime" aria-label="<?php esc_attr_e( 'Uptime check interval', 'unstoppable-site-manager' ); ?>">
+							<option value="5" <?php selected( $s['uptime'], '5' ); ?>><?php esc_html_e( 'Every 5 minutes', 'unstoppable-site-manager' ); ?></option>
+							<option value="15" <?php selected( $s['uptime'], '15' ); ?>><?php esc_html_e( 'Every 15 minutes', 'unstoppable-site-manager' ); ?></option>
+							<option value="30" <?php selected( $s['uptime'], '30' ); ?>><?php esc_html_e( 'Every 30 minutes', 'unstoppable-site-manager' ); ?></option>
+							<option value="off" <?php selected( $s['uptime'], 'off' ); ?>><?php esc_html_e( 'Off', 'unstoppable-site-manager' ); ?></option>
+						</select>
+						<p class="description"><?php esc_html_e( 'The dashboard loads each client site\'s home page, twenty at a time. A site that fails twice in a row (no answer or a server error) is marked Down. A 503 while a site is in maintenance mode counts as up. If most sites fail at once, the problem is this dashboard\'s own connection and no alerts are sent.', 'unstoppable-site-manager' ); ?></p>
+						<label><input type="checkbox" name="uptime_alerts" value="1" <?php checked( ! empty( $s['uptime_alerts'] ) ); ?>> <?php esc_html_e( 'Email me when a site goes down and when it is back up', 'unstoppable-site-manager' ); ?></label>
+						<?php $usmd_net = (int) get_option( USMD_Monitor::OPT_NET ); ?>
+						<?php if ( $usmd_net && time() - $usmd_net < DAY_IN_SECONDS ) : ?>
+							<p class="description is-bad">
+								<?php
+								/* translators: %s: time ago. */
+								echo esc_html( sprintf( __( 'Most sites failed at once %s ago, so that check was treated as a problem with this dashboard\'s connection and skipped.', 'unstoppable-site-manager' ), human_time_diff( $usmd_net ) ) );
+								?>
+							</p>
+						<?php endif; ?>
+					</td></tr>
+					<tr><th><?php esc_html_e( 'SSL certificates', 'unstoppable-site-manager' ); ?></th><td>
+						<label><input type="checkbox" name="expiry_alerts" value="1" <?php checked( ! empty( $s['expiry_alerts'] ) ); ?>> <?php esc_html_e( 'Email me before certificates (and domains, if checked below) expire', 'unstoppable-site-manager' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Once a day the dashboard reads each site\'s certificate the way a visitor\'s browser does, so an expiring certificate is caught even when the site can\'t report in. Emails at 14, 7, 3 and 1 days, and if it expires; they start again after a renewal.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+					<tr><th><?php esc_html_e( 'Domain expiry', 'unstoppable-site-manager' ); ?></th><td>
+						<label><input type="checkbox" name="domain_check" value="1" <?php checked( ! empty( $s['domain_check'] ) ); ?>> <?php esc_html_e( 'Look up when each client\'s domain registration expires', 'unstoppable-site-manager' ); ?></label>
+						<p class="description"><strong><?php esc_html_e( 'Off unless you turn it on.', 'unstoppable-site-manager' ); ?></strong> <?php esc_html_e( 'Once a week (daily in the last 30 days), each domain name is looked up in public registry data (RDAP) through rdap.org, which passes the request to the domain\'s registry. Only the domain name is sent. Emails at 30, 14, 7 and 1 days. Some country domains have no RDAP service; those show "not available".', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+				</table>
 				<h2>Screenshots</h2>
 				<table class="form-table" role="presentation">
 					<tr><th>Screenshot service</th><td>
@@ -1237,6 +1281,7 @@ final class USMD_Admin {
 			wp_die( 'Not allowed.' );
 		}
 		check_admin_referer( 'usmd_settings' );
+		$was_uptime = self::settings()['uptime'];
 		update_option(
 			'usmd_settings',
 			array(
@@ -1262,6 +1307,10 @@ final class USMD_Admin {
 				'digest'         => empty( $_POST['digest'] ) ? 0 : 1,
 				'digest_email'   => isset( $_POST['digest_email'] ) ? sanitize_email( wp_unslash( $_POST['digest_email'] ) ) : '',
 				'digest_hour'    => isset( $_POST['digest_hour'] ) ? min( 23, absint( $_POST['digest_hour'] ) ) : 7,
+				'uptime'         => isset( $_POST['uptime'] ) && in_array( $_POST['uptime'], array( '5', '15', '30', 'off' ), true ) ? sanitize_key( $_POST['uptime'] ) : '5',
+				'uptime_alerts'  => empty( $_POST['uptime_alerts'] ) ? 0 : 1,
+				'expiry_alerts'  => empty( $_POST['expiry_alerts'] ) ? 0 : 1,
+				'domain_check'   => empty( $_POST['domain_check'] ) ? 0 : 1,
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.
@@ -1276,6 +1325,11 @@ final class USMD_Admin {
 					wp_schedule_single_event( time() + 10 + 5 * $i++, USMD_Vulns::HOOK, array( (int) $site->id ) );
 				}
 			}
+		}
+		if ( 'off' === $was_uptime && 'off' !== $saved['uptime'] ) {
+			// Monitoring switched back on: uptime figures start from now, not from before the gap.
+			update_option( 'usmd_uptime_since', time(), false );
+			delete_option( USMD_Monitor::OPT_UPTIME );
 		}
 		USMD_Branding::queue_all(); // Send changed admin footer branding to the sites it affects.
 		wp_safe_redirect( admin_url( 'admin.php?page=usmd-settings&saved=1' ) );

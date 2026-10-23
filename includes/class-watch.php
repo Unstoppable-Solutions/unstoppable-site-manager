@@ -121,12 +121,18 @@ final class USMD_Watch {
 			'vulns'   => array(),
 			'down'    => array(),
 			'ssl'     => array(),
+			'domain'  => array(),
 			'maint'   => array(),
 			'updates' => array(),
 		);
+		$seen_domains = array();
 		foreach ( USMD_Sites::all() as $site ) {
 			$stale = ! $site->last_seen || ( time() - strtotime( $site->last_seen . ' UTC' ) ) > DAY_IN_SECONDS;
-			if ( $site->last_error || $stale ) {
+			if ( USMD_Monitor::is_down( $site->id ) ) {
+				$us            = USMD_Monitor::state( $site->id );
+				/* translators: 1: time ago, 2: reason. */
+				$out['down'][] = array( $site, sprintf( __( 'Down since %1$s ago: %2$s', 'unstoppable-site-manager' ), human_time_diff( $us['since'] ), $us['error'] ) );
+			} elseif ( $site->last_error || $stale ) {
 				$out['down'][] = array(
 					$site,
 					$site->last_error
@@ -142,8 +148,10 @@ final class USMD_Watch {
 					$out['vulns'][] = array( $site, sprintf( _n( '%1$d item with a known vulnerability (worst: %2$s)', '%1$d items with known vulnerabilities (worst: %2$s)', $v, 'unstoppable-site-manager' ), $v, USMD_Vulns::worst( $site->id ) ) );
 				}
 			}
-			if ( 0 === strpos( $site->url, 'https://' ) && null !== $site->ssl_days && (int) $site->ssl_days < self::SSL_WARN ) {
-				$d             = (int) $site->ssl_days;
+			$ex       = USMD_Monitor::expiry( $site->id );
+			$ssl_days = ! empty( $ex['ssl_expires'] ) ? USMD_Monitor::days_left( $ex['ssl_expires'] ) : ( null === $site->ssl_days ? null : (int) $site->ssl_days );
+			if ( 0 === strpos( $site->url, 'https://' ) && null !== $ssl_days && $ssl_days < self::SSL_WARN ) {
+				$d             = $ssl_days;
 				$out['ssl'][]  = array(
 					$site,
 					$d < 0
@@ -151,6 +159,21 @@ final class USMD_Watch {
 						/* translators: %d: days. */
 						: sprintf( _n( 'SSL certificate expires in %d day', 'SSL certificate expires in %d days', $d, 'unstoppable-site-manager' ), $d ),
 				);
+			}
+			if ( ! empty( USMD_Admin::settings()['domain_check'] ) ) {
+				$di = USMD_Monitor::domain_info( $site );
+				if ( ! empty( $di['expires'] ) && USMD_Monitor::days_left( $di['expires'] ) <= 30 && ! isset( $seen_domains[ $di['domain'] ] ) ) {
+					$seen_domains[ $di['domain'] ] = true;
+					$dd                            = USMD_Monitor::days_left( $di['expires'] );
+					$out['domain'][]               = array(
+						$site,
+						$dd < 0
+							/* translators: %s: domain. */
+							? sprintf( __( 'Domain %s has expired', 'unstoppable-site-manager' ), $di['domain'] )
+							/* translators: 1: domain, 2: days. */
+							: sprintf( _n( 'Domain %1$s expires in %2$d day', 'Domain %1$s expires in %2$d days', $dd, 'unstoppable-site-manager' ), $di['domain'], $dd ),
+					);
+				}
 			}
 			$m = USMD_Maintenance::state( $site );
 			if ( $m['on'] && $m['since'] && time() - $m['since'] > self::MAINT_LONG ) {
@@ -181,6 +204,7 @@ final class USMD_Watch {
 			'vulns'   => __( 'Known vulnerabilities', 'unstoppable-site-manager' ),
 			'down'    => __( 'Sites not answering', 'unstoppable-site-manager' ),
 			'ssl'     => __( 'SSL certificates expiring', 'unstoppable-site-manager' ),
+			'domain'  => __( 'Domains expiring', 'unstoppable-site-manager' ),
 			'maint'   => __( 'Still in maintenance mode', 'unstoppable-site-manager' ),
 			'updates' => __( 'Updates waiting', 'unstoppable-site-manager' ),
 		);
