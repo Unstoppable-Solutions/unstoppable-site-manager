@@ -143,7 +143,7 @@ final class USMD_Security {
 			'install_wporg' => __( 'Install from WordPress.org', 'unstoppable-site-manager' ),
 			'install_zip'   => __( 'Install from ZIP or web address', 'unstoppable-site-manager' ),
 			'delete'        => __( 'Delete plugins', 'unstoppable-site-manager' ),
-			'branding'      => __( 'Admin footer branding', 'unstoppable-site-manager' ),
+			'branding'      => __( 'Branding (admin footer, connector name)', 'unstoppable-site-manager' ),
 			'maintenance'   => __( 'Maintenance mode', 'unstoppable-site-manager' ),
 		);
 	}

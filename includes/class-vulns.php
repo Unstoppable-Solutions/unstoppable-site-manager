@@ -198,6 +198,54 @@ final class USMD_Vulns {
 		return $result;
 	}
 
+	/**
+	 * Known vulnerabilities an update fixed: they affected the old version and not the new one.
+	 * Looks items up (cached for 12 hours, a dozen at a time) when they aren't cached yet.
+	 *
+	 * @param array $updates [ [ type, slug, from, to ], ... ] with type plugin|theme|core.
+	 * @return array Same keys => list of fixed vulnerabilities (normalised), only those with fixes.
+	 */
+	public static function fixed_by_updates( array $updates ) {
+		if ( ! self::enabled() ) {
+			return array();
+		}
+		$targets = array();
+		foreach ( $updates as $u ) {
+			if ( '' === $u[2] || '' === $u[3] || ( 'core' !== $u[0] && '' === $u[1] ) ) {
+				continue;
+			}
+			$targets[] = array( $u[0], $u[1], '', 'core' === $u[0] ? $u[2] : '' );
+		}
+		self::prefetch( $targets );
+		$out = array();
+		foreach ( $updates as $key => $u ) {
+			list( $type, $slug, $from, $to ) = $u;
+			if ( '' === $from || '' === $to || version_compare( $to, $from, '<=' ) ) {
+				continue;
+			}
+			$known = self::lookup( $type, 'core' === $type ? $from : $slug );
+			if ( is_wp_error( $known ) ) {
+				continue;
+			}
+			$fixed = array();
+			foreach ( $known as $k ) {
+				if ( self::affects( $k, $from ) && ! self::affects( $k, $to ) ) {
+					$fixed[] = $k;
+				}
+			}
+			if ( $fixed ) {
+				usort(
+					$fixed,
+					static function ( $a, $b ) {
+						return $b['score'] <=> $a['score'];
+					}
+				);
+				$out[ $key ] = $fixed;
+			}
+		}
+		return $out;
+	}
+
 	/** "elementor/elementor.php" -> "elementor"; single-file plugins use their file name. */
 	public static function slug_from_file( $file ) {
 		$file = (string) $file;

@@ -26,6 +26,7 @@ final class USMD_Clients {
 		'report_reply_to'   => 'email',
 		'footer_text'       => 'text',
 		'footer_url'        => 'url',
+		'connector_name'    => 'text',
 	);
 
 	public static function hooks() {
@@ -289,8 +290,19 @@ final class USMD_Clients {
 	private static function list_screen() {
 		$clients    = self::all();
 		$unassigned = 0;
+		$site_owner = array();
 		foreach ( USMD_Sites::all() as $s ) {
-			$unassigned += empty( $s->client_id ) ? 1 : 0;
+			$unassigned                += empty( $s->client_id ) ? 1 : 0;
+			$site_owner[ (int) $s->id ] = (int) $s->client_id;
+		}
+		// Work-note time per client: this month and last month.
+		$time = array( array(), array() );
+		foreach ( array( wp_date( 'Y-m' ), wp_date( 'Y-m', strtotime( 'first day of last month' ) ) ) as $i => $ym ) {
+			list( $from, $to ) = USMD_Work::month_bounds( $ym );
+			foreach ( USMD_Work::minutes_by_site( $from, $to ) as $sid => $m ) {
+				$cid                = isset( $site_owner[ $sid ] ) ? $site_owner[ $sid ] : 0;
+				$time[ $i ][ $cid ] = ( isset( $time[ $i ][ $cid ] ) ? $time[ $i ][ $cid ] : 0 ) + $m;
+			}
 		}
 		?>
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Clients', 'unstoppable-site-manager' ); ?></h1>
@@ -308,6 +320,8 @@ final class USMD_Clients {
 					<th><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?></th>
 					<th><?php esc_html_e( 'Sites', 'unstoppable-site-manager' ); ?></th>
 					<th><?php esc_html_e( 'Report branding', 'unstoppable-site-manager' ); ?></th>
+					<th><?php echo esc_html( sprintf( /* translators: %s: month. */ __( 'Time in %s', 'unstoppable-site-manager' ), wp_date( 'F' ) ) ); ?></th>
+					<th><?php echo esc_html( sprintf( /* translators: %s: month. */ __( 'Time in %s', 'unstoppable-site-manager' ), wp_date( 'F', strtotime( 'first day of last month' ) ) ) ); ?></th>
 					<th></th>
 				</tr></thead>
 				<tbody>
@@ -316,6 +330,9 @@ final class USMD_Clients {
 						<td><a class="row-title" href="<?php echo esc_url( self::page_url( array( 'client' => (int) $c->id ) ) ); ?>"><?php echo esc_html( $c->name ); ?></a></td>
 						<td><a href="<?php echo esc_url( add_query_arg( 'client', (int) $c->id, admin_url( 'admin.php?page=unstoppable-site-manager' ) ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: number of sites. */ _n( '%d site', '%d sites', $c->sites, 'unstoppable-site-manager' ), $c->sites ) ); ?></a></td>
 						<td><?php echo $c->settings ? esc_html__( 'Own branding', 'unstoppable-site-manager' ) : '<span class="usmd-muted">' . esc_html__( 'From Settings', 'unstoppable-site-manager' ) . '</span>'; ?></td>
+						<?php foreach ( array( 0, 1 ) as $usmd_i ) : ?>
+							<td><?php echo ! empty( $time[ $usmd_i ][ (int) $c->id ] ) ? esc_html( USMD_Work::fmt( $time[ $usmd_i ][ (int) $c->id ] ) ) : '<span class="usmd-muted">—</span>'; ?></td>
+						<?php endforeach; ?>
 						<td><a href="<?php echo esc_url( self::page_url( array( 'client' => (int) $c->id ) ) ); ?>"><?php esc_html_e( 'Edit', 'unstoppable-site-manager' ); ?></a></td>
 					</tr>
 				<?php endforeach; ?>
@@ -337,6 +354,12 @@ final class USMD_Clients {
 		$id    = $c ? (int) $c->id : 0;
 		$o     = $c ? $c->settings : array();
 		$def   = USMD_Admin::settings();
+		// Placeholders say where an empty field's value comes from.
+		$ph = static function ( $v, $none = '' ) {
+			$v = (string) $v;
+			/* translators: %s: the value from Settings. */
+			return '' === $v ? ( '' === $none ? __( 'Default: none', 'unstoppable-site-manager' ) : $none ) : sprintf( __( 'Default: %s', 'unstoppable-site-manager' ), $v );
+		};
 		$sites = USMD_Sites::all();
 		$names = self::names();
 		$field = static function ( $k ) use ( $o ) {
@@ -384,9 +407,9 @@ final class USMD_Clients {
 			<p class="usmd-muted"><?php esc_html_e( 'Leave a field empty to use what is in Settings (shown in grey).', 'unstoppable-site-manager' ); ?></p>
 			<table class="form-table" role="presentation">
 				<tr><th><label for="usmd-cl-agency"><?php esc_html_e( 'Agency name', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-agency" name="o[agency_name]" class="regular-text" value="<?php echo esc_attr( $field( 'agency_name' ) ); ?>" placeholder="<?php echo esc_attr( $def['agency_name'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-agency" name="o[agency_name]" class="regular-text" value="<?php echo esc_attr( $field( 'agency_name' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['agency_name'] ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-logo"><?php esc_html_e( 'Logo URL', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-logo" name="o[logo_url]" type="url" class="large-text" value="<?php echo esc_attr( $field( 'logo_url' ) ); ?>" placeholder="<?php echo esc_attr( $def['logo_url'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-logo" name="o[logo_url]" type="url" class="large-text" value="<?php echo esc_attr( $field( 'logo_url' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['logo_url'] ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-brand"><?php esc_html_e( 'Report header shows', 'unstoppable-site-manager' ); ?></label></th>
 					<td><select id="usmd-cl-brand" name="o[report_brand]">
 						<option value=""><?php esc_html_e( 'As in Settings', 'unstoppable-site-manager' ); ?></option>
@@ -395,27 +418,29 @@ final class USMD_Clients {
 						<option value="both" <?php selected( $field( 'report_brand' ), 'both' ); ?>><?php esc_html_e( 'Logo and agency name', 'unstoppable-site-manager' ); ?></option>
 					</select></td></tr>
 				<tr><th><label for="usmd-cl-color"><?php esc_html_e( 'Brand colour', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-color" name="o[report_color]" class="code usmd-cl-color" value="<?php echo esc_attr( $field( 'report_color' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_color'] ); ?>"> <span class="usmd-muted"><?php esc_html_e( 'Hex, like #1e5aa8', 'unstoppable-site-manager' ); ?></span></td></tr>
+					<td><input id="usmd-cl-color" name="o[report_color]" class="code usmd-cl-color" value="<?php echo esc_attr( $field( 'report_color' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['report_color'] ) ); ?>"> <span class="usmd-muted"><?php esc_html_e( 'Hex, like #1e5aa8', 'unstoppable-site-manager' ); ?></span></td></tr>
 				<tr><th><label for="usmd-cl-intro"><?php esc_html_e( 'Report introduction', 'unstoppable-site-manager' ); ?></label></th>
-					<td><textarea id="usmd-cl-intro" name="o[report_intro]" class="large-text" rows="3" placeholder="<?php echo esc_attr( $def['report_intro'] ); ?>"><?php echo esc_textarea( $field( 'report_intro' ) ); ?></textarea></td></tr>
+					<td><textarea id="usmd-cl-intro" name="o[report_intro]" class="large-text" rows="3" placeholder="<?php echo esc_attr( $ph( $def['report_intro'] ) ); ?>"><?php echo esc_textarea( $field( 'report_intro' ) ); ?></textarea></td></tr>
 				<tr><th><label for="usmd-cl-contact"><?php esc_html_e( 'Contact line', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-contact" name="o[report_contact]" class="large-text" value="<?php echo esc_attr( $field( 'report_contact' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_contact'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-contact" name="o[report_contact]" class="large-text" value="<?php echo esc_attr( $field( 'report_contact' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['report_contact'] ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-subject"><?php esc_html_e( 'Email subject', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-subject" name="o[report_subject]" class="large-text" value="<?php echo esc_attr( $field( 'report_subject' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_subject'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-subject" name="o[report_subject]" class="large-text" value="<?php echo esc_attr( $field( 'report_subject' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['report_subject'] ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-fromname"><?php esc_html_e( 'From name', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-fromname" name="o[report_from_name]" class="regular-text" value="<?php echo esc_attr( $field( 'report_from_name' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_from_name'] ? $def['report_from_name'] : $def['agency_name'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-fromname" name="o[report_from_name]" class="regular-text" value="<?php echo esc_attr( $field( 'report_from_name' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['report_from_name'] ? $def['report_from_name'] : $def['agency_name'] ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-fromemail"><?php esc_html_e( 'From email', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-fromemail" name="o[report_from_email]" type="email" class="regular-text" value="<?php echo esc_attr( $field( 'report_from_email' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_from_email'] ? $def['report_from_email'] : USMD_Admin::agency_email() ); ?>"></td></tr>
+					<td><input id="usmd-cl-fromemail" name="o[report_from_email]" type="email" class="regular-text" value="<?php echo esc_attr( $field( 'report_from_email' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['report_from_email'] ? $def['report_from_email'] : USMD_Admin::agency_email() ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-reply"><?php esc_html_e( 'Reply-To', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-reply" name="o[report_reply_to]" type="email" class="regular-text" value="<?php echo esc_attr( $field( 'report_reply_to' ) ); ?>" placeholder="<?php echo esc_attr( $def['report_reply_to'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-reply" name="o[report_reply_to]" type="email" class="regular-text" value="<?php echo esc_attr( $field( 'report_reply_to' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['report_reply_to'] ) ); ?>"></td></tr>
 			</table>
 			<h2><?php esc_html_e( 'Admin footer on this client\'s sites', 'unstoppable-site-manager' ); ?></h2>
 			<p class="usmd-muted"><?php esc_html_e( 'Replaces "Thank you for creating with WordPress" at the bottom of their admin screens (never the public site). Empty uses Settings.', 'unstoppable-site-manager' ); ?></p>
 			<table class="form-table" role="presentation">
 				<tr><th><label for="usmd-cl-ftext"><?php esc_html_e( 'Footer text', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-ftext" name="o[footer_text]" class="regular-text" maxlength="120" value="<?php echo esc_attr( $field( 'footer_text' ) ); ?>" placeholder="<?php echo esc_attr( $def['footer_text'] ? $def['footer_text'] : __( 'Off in Settings', 'unstoppable-site-manager' ) ); ?>"></td></tr>
+					<td><input id="usmd-cl-ftext" name="o[footer_text]" class="regular-text" maxlength="120" value="<?php echo esc_attr( $field( 'footer_text' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['footer_text'], __( 'Default: off', 'unstoppable-site-manager' ) ) ); ?>"></td></tr>
 				<tr><th><label for="usmd-cl-furl"><?php esc_html_e( 'Footer link', 'unstoppable-site-manager' ); ?></label></th>
-					<td><input id="usmd-cl-furl" name="o[footer_url]" type="url" class="regular-text" value="<?php echo esc_attr( $field( 'footer_url' ) ); ?>" placeholder="<?php echo esc_attr( $def['footer_url'] ); ?>"></td></tr>
+					<td><input id="usmd-cl-furl" name="o[footer_url]" type="url" class="regular-text" value="<?php echo esc_attr( $field( 'footer_url' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['footer_url'] ) ); ?>"></td></tr>
+				<tr><th><label for="usmd-cl-cname"><?php esc_html_e( 'Connector shown as', 'unstoppable-site-manager' ); ?></label></th>
+					<td><input id="usmd-cl-cname" name="o[connector_name]" class="regular-text" maxlength="60" value="<?php echo esc_attr( $field( 'connector_name' ) ); ?>" placeholder="<?php echo esc_attr( $ph( $def['connector_name'], __( 'Default: Unstoppable Site Connector', 'unstoppable-site-manager' ) ) ); ?>"></td></tr>
 			</table>
 			<?php submit_button( $c ? __( 'Save client', 'unstoppable-site-manager' ) : __( 'Add client', 'unstoppable-site-manager' ) ); ?>
 		</form>

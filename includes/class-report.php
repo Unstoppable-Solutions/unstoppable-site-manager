@@ -120,6 +120,59 @@ final class USMD_Report {
 		return $row->type . ':' . sanitize_title( self::nice_name( $row ) );
 	}
 
+	public static function severity_label( $sev ) {
+		$l = array(
+			'critical' => __( 'Critical', 'unstoppable-site-manager' ),
+			'high'     => __( 'High', 'unstoppable-site-manager' ),
+			'medium'   => __( 'Medium', 'unstoppable-site-manager' ),
+			'low'      => __( 'Low', 'unstoppable-site-manager' ),
+		);
+		return isset( $l[ $sev ] ) ? $l[ $sev ] : __( 'Unrated', 'unstoppable-site-manager' );
+	}
+
+	/** Directory slug of a plugin ("elementor/elementor.php" -> "elementor") or a theme's stylesheet. */
+	private static function slug_of( $row ) {
+		$obj = strtolower( (string) $row->object );
+		if ( 'plugin' === $row->type ) {
+			return USMD_Vulns::slug_from_file( $obj );
+		}
+		return preg_match( '/^[a-z0-9][a-z0-9._-]*$/', $obj ) ? $obj : '';
+	}
+
+	/**
+	 * Security part of the report: what is still vulnerable, and what this month's updates fixed.
+	 *
+	 * @return array { open: [ [name, version, title, severity, fixed_in] ], fixed: [ [name, from, to, count, worst, titles[]] ] }
+	 */
+	public static function security( $site, array $updates ) {
+		$out = array(
+			'open'  => array(),
+			'fixed' => array(),
+		);
+		if ( ! USMD_Vulns::enabled() ) {
+			return $out;
+		}
+		$vr = USMD_Vulns::for_site( $site->id );
+		foreach ( $vr ? $vr['items'] : array() as $it ) {
+			$top           = $it['vulns'][0];
+			$fix           = '';
+			foreach ( $it['vulns'] as $v ) {
+				if ( $v['fixed_in'] && ( '' === $fix || version_compare( $v['fixed_in'], $fix, '>' ) ) ) {
+					$fix = $v['fixed_in'];
+				}
+			}
+			$out['open'][] = array( $it['name'], $it['version'], $top['title'], $top['severity'], $fix, count( $it['vulns'] ) );
+		}
+		$ask = array();
+		foreach ( $updates as $key => $u ) {
+			$ask[ $key ] = array( $u['type'], isset( $u['slug'] ) ? $u['slug'] : '', $u['from'], $u['to'] );
+		}
+		foreach ( USMD_Vulns::fixed_by_updates( $ask ) as $key => $fixed ) {
+			$out['fixed'][] = array( $updates[ $key ]['name'], $updates[ $key ]['from'], $updates[ $key ]['to'], count( $fixed ), $fixed[0]['severity'], wp_list_pluck( array_slice( $fixed, 0, 3 ), 'title' ) );
+		}
+		return $out;
+	}
+
 	/** The connector is our maintenance tool, not a change the client made or asked for. */
 	private static function is_connector( $row ) {
 		$name = strtolower( self::nice_name( $row ) );
@@ -147,6 +200,7 @@ final class USMD_Report {
 				if ( ! isset( $updates[ $key ] ) ) {
 					$updates[ $key ] = array(
 						'type'  => $r->type,
+						'slug'  => 'core' === $r->type ? '' : self::slug_of( $r ),
 						'name'  => 'core' === $r->type ? 'WordPress' : self::nice_name( $r ),
 						'from'  => isset( $d['from'] ) ? (string) $d['from'] : '',
 						'to'    => '',
@@ -420,6 +474,7 @@ final class USMD_Report {
 			'month'   => $month,
 			'sum'     => $sum,
 			'health'  => $health,
+			'security'=> self::security( $site, $sum['updates'] ),
 			'settings'=> $s,
 			'note'    => $note,
 			'label'   => $label,
@@ -612,6 +667,65 @@ final class USMD_Report {
 					</div>
 				</section>
 
+				<?php $sec = $d['security']; ?>
+				<?php if ( $sec['open'] || $sec['fixed'] ) : ?>
+					<section class="usmd-r-section usmd-r-security">
+						<h2><?php esc_html_e( 'Security', 'unstoppable-site-manager' ); ?></h2>
+						<?php if ( $sec['fixed'] ) : ?>
+							<h3><?php esc_html_e( 'Security fixes this month', 'unstoppable-site-manager' ); ?></h3>
+							<p class="usmd-r-muted">
+								<?php
+								$usmd_nfix = array_sum( wp_list_pluck( $sec['fixed'], 3 ) );
+								/* translators: %d: number of known vulnerabilities. */
+								echo esc_html( sprintf( _n( 'The updates we applied closed %d known security hole.', 'The updates we applied closed %d known security holes.', $usmd_nfix, 'unstoppable-site-manager' ), $usmd_nfix ) );
+								?>
+							</p>
+							<ul class="usmd-r-sec-list">
+								<?php foreach ( $sec['fixed'] as $f ) : ?>
+									<li class="is-ok">
+										<span class="usmd-r-mark" aria-hidden="true">✓</span>
+										<div>
+											<strong><?php echo esc_html( $f[0] ); ?></strong> <span class="usmd-r-muted"><?php echo esc_html( $f[1] . ' → ' . $f[2] ); ?></span>
+											<span class="usmd-r-sev is-<?php echo esc_attr( $f[4] ); ?>"><?php echo esc_html( self::severity_label( $f[4] ) ); ?></span><br>
+											<span class="usmd-r-muted">
+												<?php
+												/* translators: 1: number fixed, 2: titles. */
+												echo esc_html( sprintf( _n( 'Fixed %1$d issue: %2$s', 'Fixed %1$d issues, including: %2$s', $f[3], 'unstoppable-site-manager' ), $f[3], implode( '; ', $f[5] ) ) );
+												?>
+											</span>
+										</div>
+									</li>
+								<?php endforeach; ?>
+							</ul>
+						<?php endif; ?>
+						<?php if ( $sec['open'] ) : ?>
+							<h3><?php esc_html_e( 'Still to fix', 'unstoppable-site-manager' ); ?></h3>
+							<ul class="usmd-r-sec-list">
+								<?php foreach ( $sec['open'] as $o ) : ?>
+									<li class="is-bad">
+										<span class="usmd-r-mark" aria-hidden="true">!</span>
+										<div>
+											<strong><?php echo esc_html( $o[0] . ' ' . $o[1] ); ?></strong>
+											<span class="usmd-r-sev is-<?php echo esc_attr( $o[3] ); ?>"><?php echo esc_html( self::severity_label( $o[3] ) ); ?></span><br>
+											<span class="usmd-r-muted"><?php echo esc_html( $o[2] ); ?><?php echo $o[5] > 1 ? esc_html( sprintf( /* translators: %d: number of other issues. */ _n( ' (and %d more)', ' (and %d more)', $o[5] - 1, 'unstoppable-site-manager' ), $o[5] - 1 ) ) : ''; ?></span><br>
+											<span>
+												<?php
+												echo esc_html(
+													$o[4]
+														/* translators: %s: version. */
+														? sprintf( __( 'Fixed by updating to %s or newer.', 'unstoppable-site-manager' ), $o[4] )
+														: __( 'No fix released yet: we are watching it.', 'unstoppable-site-manager' )
+												);
+												?>
+											</span>
+										</div>
+									</li>
+								<?php endforeach; ?>
+							</ul>
+						<?php endif; ?>
+					</section>
+				<?php endif; ?>
+
 				<?php if ( '' !== $note ) : ?>
 					<section class="usmd-r-note">
 						<h2><?php echo esc_html( sprintf( /* translators: %s: agency name. */ __( 'A note from %s', 'unstoppable-site-manager' ), $s['agency_name'] ) ); ?></h2>
@@ -627,7 +741,7 @@ final class USMD_Report {
 								<li>
 									<span class="usmd-r-date"><?php echo esc_html( wp_date( 'M j', strtotime( $w['date'] . ' 12:00:00' ) ) ); ?></span>
 									<div>
-										<strong><?php echo esc_html( $w['title'] ); ?></strong>
+										<strong><?php echo esc_html( $w['title'] ); ?></strong><?php if ( ! empty( $w['min'] ) && ! empty( USMD_Admin::settings()['report_time'] ) ) : ?> <span style="color:#5b6470;font-weight:400;">(<?php echo esc_html( USMD_Work::fmt( $w['min'] ) ); ?>)</span><?php endif; ?>
 										<?php if ( '' !== $w['desc'] ) : ?>
 											<?php echo wp_kses_post( wpautop( esc_html( $w['desc'] ) ) ); ?>
 										<?php endif; ?>

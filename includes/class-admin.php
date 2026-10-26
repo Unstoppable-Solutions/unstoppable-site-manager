@@ -20,7 +20,9 @@ final class USMD_Admin {
 	}
 
 	public static function menu() {
-		add_menu_page( __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ), 'dashicons-networking' );
+		// Default: WordPress places it after other plugins' menus. Opt-in: just below Comments.
+		$position = ! empty( self::settings()['menu_high'] ) ? 26 : null;
+		add_menu_page( __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), __( 'Unstoppable Site Manager', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ), 'dashicons-networking', $position );
 		add_submenu_page( self::SLUG, __( 'Sites', 'unstoppable-site-manager' ), __( 'Sites', 'unstoppable-site-manager' ), USMD_Security::CAP, self::SLUG, array( __CLASS__, 'route' ) );
 		add_submenu_page( self::SLUG, __( 'Clients', 'unstoppable-site-manager' ), __( 'Clients', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-clients', array( 'USMD_Clients', 'page' ) );
 		add_submenu_page( self::SLUG, __( 'Add Site', 'unstoppable-site-manager' ), __( 'Add Site', 'unstoppable-site-manager' ), USMD_Security::CAP, 'usmd-add', array( __CLASS__, 'page_add' ) );
@@ -105,11 +107,13 @@ final class USMD_Admin {
 				'report_from_email' => '',
 				'report_reply_to'   => '',
 				'report_bcc_me'     => 1,
+				'report_time'       => 0, // Show time spent on work notes in client reports.
 				'agency_email'      => '',
 				'thumb_provider' => 'off', // Opt-in: a screenshot service receives each client site's address.
 				'thumb_template' => '',
 				'footer_text'    => '', // Admin footer branding on client sites; empty = off.
 				'footer_url'     => '',
+				'connector_name' => '', // How the connector is listed in client sites' plugin list; empty = its own name.
 				'bg_check'       => 'daily', // Fresh update check of every site in the background: daily, 6h or off.
 				'digest'         => 0,       // Daily "needs attention" email: opt-in.
 				'digest_email'   => '',
@@ -118,6 +122,7 @@ final class USMD_Admin {
 				'uptime_alerts'  => 1,
 				'expiry_alerts'  => 1,    // SSL (and domain, when on) renewal emails.
 				'domain_check'   => 0,    // Opt-in: domain names are looked up at rdap.org.
+				'menu_high'      => 0,    // Opt-in: menu just below Comments.
 			)
 		);
 	}
@@ -960,6 +965,20 @@ final class USMD_Admin {
 								<dt>Failed payments</dt><dd class="<?php echo ! empty( $wc['failed_30d'] ) ? 'is-bad' : ''; ?>"><?php echo esc_html( isset( $wc['failed_30d'] ) ? $wc['failed_30d'] : '?' ); ?></dd>
 								<dt>Pending payment</dt><dd><?php echo esc_html( isset( $wc['pending_30d'] ) ? $wc['pending_30d'] : '?' ); ?></dd>
 							</dl>
+							<p class="usmd-woo-links">
+								<?php
+								$usmd_woo = array(
+									'edit.php?post_type=shop_order' => __( 'Orders', 'unstoppable-site-manager' ),
+									'edit.php?post_type=product'    => __( 'Products', 'unstoppable-site-manager' ),
+									'admin.php?page=wc-admin'       => __( 'Analytics', 'unstoppable-site-manager' ),
+									'admin.php?page=wc-status'      => __( 'Status', 'unstoppable-site-manager' ),
+									'admin.php?page=wc-settings'    => __( 'Settings', 'unstoppable-site-manager' ),
+								);
+								foreach ( $usmd_woo as $usmd_path => $usmd_label ) :
+									?>
+									<a class="button button-small usmd-login" data-site="<?php echo (int) $site->id; ?>" data-redirect="<?php echo esc_attr( $usmd_path ); ?>" href="<?php echo esc_url( trailingslashit( $site->url ) . 'wp-admin/' . $usmd_path ); ?>" target="_blank" rel="noopener" title="<?php esc_attr_e( 'Opens the store\'s admin in a new tab, already signed in', 'unstoppable-site-manager' ); ?>"><?php echo esc_html( $usmd_label ); ?> ↗</a>
+								<?php endforeach; ?>
+							</p>
 						</div>
 					<?php endif; ?>
 
@@ -1133,6 +1152,7 @@ final class USMD_Admin {
 					<tr><th><label for="usmd-report-from-email"><?php esc_html_e( 'From email', 'unstoppable-site-manager' ); ?></label></th><td><input id="usmd-report-from-email" name="report_from_email" type="email" class="regular-text" value="<?php echo esc_attr( $s['report_from_email'] ); ?>" placeholder="<?php echo esc_attr( self::agency_email() ); ?>"><p class="description"><?php esc_html_e( 'Use an address on this site\'s domain so the email isn\'t marked as spam. For reliable delivery, send this site\'s mail through an SMTP plugin.', 'unstoppable-site-manager' ); ?></p></td></tr>
 					<tr><th><label for="usmd-report-reply"><?php esc_html_e( 'Replies go to', 'unstoppable-site-manager' ); ?></label></th><td><input id="usmd-report-reply" name="report_reply_to" type="email" class="regular-text" value="<?php echo esc_attr( $s['report_reply_to'] ); ?>" placeholder="<?php echo esc_attr( self::agency_email() ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Copy for you', 'unstoppable-site-manager' ); ?></th><td><label><input type="checkbox" name="report_bcc_me" value="1" <?php checked( ! empty( $s['report_bcc_me'] ) ); ?>> <?php echo esc_html( sprintf( /* translators: %s: email address. */ __( 'Send me a blind copy of every report (%s)', 'unstoppable-site-manager' ), self::agency_email() ) ); ?></label></td></tr>
+					<tr><th><?php esc_html_e( 'Time spent', 'unstoppable-site-manager' ); ?></th><td><label><input type="checkbox" name="report_time" value="1" <?php checked( ! empty( $s['report_time'] ) ); ?>> <?php esc_html_e( 'Show the time spent on each task in client reports', 'unstoppable-site-manager' ); ?></label><p class="description"><?php esc_html_e( 'Off: time you enter on work notes is only for you (totals per client are on the Clients screen).', 'unstoppable-site-manager' ); ?></p></td></tr>
 				</table>
 				<h2 id="usmd-vuln-settings"><?php esc_html_e( 'Vulnerability checks', 'unstoppable-site-manager' ); ?></h2>
 				<table class="form-table" role="presentation">
@@ -1158,6 +1178,10 @@ final class USMD_Admin {
 					<tr><th><label for="usmd-footer-url"><?php esc_html_e( 'Footer link', 'unstoppable-site-manager' ); ?></label></th><td>
 						<input id="usmd-footer-url" name="footer_url" type="url" class="regular-text" value="<?php echo esc_attr( $s['footer_url'] ); ?>" placeholder="https://youragency.com">
 						<p class="description"><?php esc_html_e( 'Optional. The footer text links here.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+					<tr><th><label for="usmd-connector-name"><?php esc_html_e( 'Connector shown as', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-connector-name" name="connector_name" class="regular-text" maxlength="60" value="<?php echo esc_attr( $s['connector_name'] ); ?>" placeholder="<?php echo esc_attr( sprintf( /* translators: %s: agency name. */ __( 'Website Care by %s', 'unstoppable-site-manager' ), $s['agency_name'] ) ); ?>">
+						<p class="description"><?php esc_html_e( 'Optional. The name the connector has in your client sites\' plugin list and Tools menu. It stays listed and visible like any plugin, and its description still says Unstoppable Site Connector, so site owners can always find it. Leave empty to keep its own name. Needs Unstoppable Site Connector 0.10.0; each site can switch branding off.', 'unstoppable-site-manager' ); ?></p>
 					</td></tr>
 				</table>
 				<h2 id="usmd-watch"><?php esc_html_e( 'Background checks and daily email', 'unstoppable-site-manager' ); ?></h2>
@@ -1262,6 +1286,13 @@ final class USMD_Admin {
 						<p class="description">For "Another service": paste your provider's screenshot URL with <code>{url}</code> where the site address goes. It must return a JPEG, PNG or WebP image.</p>
 					</td></tr>
 				</table>
+				<h2><?php esc_html_e( 'Menu', 'unstoppable-site-manager' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Menu position', 'unstoppable-site-manager' ); ?></th><td>
+						<label><input type="checkbox" name="menu_high" value="1" <?php checked( ! empty( $s['menu_high'] ) ); ?>> <?php esc_html_e( 'Show Unstoppable Site Manager near the top of the admin menu, just below Comments', 'unstoppable-site-manager' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Off by default: WordPress then lists it after other plugins\' menus. Only changes this dashboard\'s own admin menu.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+				</table>
 				<h2>Connection details</h2>
 				<table class="form-table" role="presentation">
 					<tr><th>Push URL</th><td><code><?php echo esc_html( USMD_Receiver::push_url() ); ?></code><p class="description">Client sites send their reports here. It must be reachable from the internet on port 80, 443 or 8080.</p></td></tr>
@@ -1298,11 +1329,13 @@ final class USMD_Admin {
 				'report_from_email' => isset( $_POST['report_from_email'] ) ? sanitize_email( wp_unslash( $_POST['report_from_email'] ) ) : '',
 				'report_reply_to'   => isset( $_POST['report_reply_to'] ) ? sanitize_email( wp_unslash( $_POST['report_reply_to'] ) ) : '',
 				'report_bcc_me'     => empty( $_POST['report_bcc_me'] ) ? 0 : 1,
+				'report_time'       => empty( $_POST['report_time'] ) ? 0 : 1,
 				'agency_email'      => isset( $_POST['agency_email'] ) ? sanitize_email( wp_unslash( $_POST['agency_email'] ) ) : '',
 				'thumb_provider' => isset( $_POST['thumb_provider'] ) && in_array( $_POST['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? sanitize_key( $_POST['thumb_provider'] ) : 'off',
 				'thumb_template' => isset( $_POST['thumb_template'] ) ? esc_url_raw( str_replace( '{url}', 'USMDURLTOKEN', sanitize_text_field( wp_unslash( $_POST['thumb_template'] ) ) ) ) : '',
 				'footer_text'    => isset( $_POST['footer_text'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['footer_text'] ) ), 0, 120 ) : '',
 				'footer_url'     => isset( $_POST['footer_url'] ) ? esc_url_raw( wp_unslash( $_POST['footer_url'] ), array( 'https', 'http' ) ) : '',
+				'connector_name' => isset( $_POST['connector_name'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['connector_name'] ) ), 0, 60 ) : '',
 				'bg_check'       => isset( $_POST['bg_check'] ) && in_array( $_POST['bg_check'], array( 'daily', '6h', 'off' ), true ) ? sanitize_key( $_POST['bg_check'] ) : 'daily',
 				'digest'         => empty( $_POST['digest'] ) ? 0 : 1,
 				'digest_email'   => isset( $_POST['digest_email'] ) ? sanitize_email( wp_unslash( $_POST['digest_email'] ) ) : '',
@@ -1311,6 +1344,7 @@ final class USMD_Admin {
 				'uptime_alerts'  => empty( $_POST['uptime_alerts'] ) ? 0 : 1,
 				'expiry_alerts'  => empty( $_POST['expiry_alerts'] ) ? 0 : 1,
 				'domain_check'   => empty( $_POST['domain_check'] ) ? 0 : 1,
+				'menu_high'      => empty( $_POST['menu_high'] ) ? 0 : 1,
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.

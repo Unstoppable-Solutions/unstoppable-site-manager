@@ -292,6 +292,7 @@
 				]));
 			});
 			refreshGo();
+			if (typeof syncSets === 'function') { syncSets(); }
 		}
 		function add(item) {
 			if (item.slug && queue.some(function (q) { return q.slug === item.slug; })) { return; }
@@ -299,6 +300,51 @@
 			item.key = ++seq;
 			queue.push(item);
 			renderQueue();
+		}
+
+		/* --- favorite sets --- */
+		var sets = P.sets || [], pick = document.getElementById('usmd-set-pick');
+		var loadBtn = document.getElementById('usmd-set-load'), delBtn = document.getElementById('usmd-set-delete'), saveBtn = document.getElementById('usmd-set-save');
+		function saveable() { return queue.filter(function (q) { return q.ready && (q.type === 'wporg' || q.type === 'url'); }); }
+		function renderSets(keep) {
+			if (!pick) { return; }
+			while (pick.options.length > 1) { pick.remove(1); }
+			sets.forEach(function (st, i) { pick.appendChild(el('option', { value: String(i), text: st.name + ' (' + plural(st.items.length, 'plugin', 'plugins') + ')' })); });
+			var k = keep ? sets.findIndex(function (st) { return st.name.toLowerCase() === keep.toLowerCase(); }) : -1;
+			pick.value = k >= 0 ? String(k) : '';
+			syncSets();
+		}
+		function syncSets() {
+			if (!pick) { return; }
+			loadBtn.disabled = delBtn.disabled = pick.value === '';
+			saveBtn.disabled = !saveable().length;
+		}
+		if (pick) {
+			pick.addEventListener('change', syncSets);
+			loadBtn.addEventListener('click', function () {
+				var st = sets[+pick.value]; if (!st) { return; }
+				st.items.forEach(function (it) {
+					if (it.type === 'url' && queue.some(function (q) { return q.url === it.url; })) { return; }
+					add({ type: it.type, slug: it.slug, url: it.url, name: it.name, ready: true });
+				});
+				syncRepoButtons();
+				status('Added "' + st.name + '" to the install list.', 'is-hint');
+			});
+			delBtn.addEventListener('click', function () {
+				var st = sets[+pick.value]; if (!st || !window.confirm('Delete the set "' + st.name + '"? Plugins already on your sites are not affected.')) { return; }
+				post('set_delete', { name: st.name }).then(function (res) { if (res.success) { sets = res.data.sets; renderSets(); } });
+			});
+			saveBtn.addEventListener('click', function () {
+				var items = saveable(), cur = sets[+pick.value];
+				var name = window.prompt('Name for this set (saving under an existing name replaces it):', cur ? cur.name : 'New site starter pack');
+				if (!name || !name.trim()) { return; }
+				post('set_save', { name: name.trim(), items: JSON.stringify(items.map(function (q) { return { type: q.type, slug: q.slug, url: q.url, name: q.name }; })) }).then(function (res) {
+					if (!res.success) { window.alert((res.data && res.data.message) || 'Could not save the set.'); return; }
+					sets = res.data.sets; renderSets(name.trim());
+					status('Saved "' + name.trim() + '" with ' + plural(items.length, 'plugin', 'plugins') + '.', 'is-hint');
+				});
+			});
+			renderSets();
 		}
 
 		/* --- directory search --- */

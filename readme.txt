@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.21.0
+Stable tag: 0.22.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -99,6 +99,15 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.22.0 =
+* Client reports: a Security section that names items with known vulnerabilities (severity, and the version that fixes them) and lists "Security fixes this month" from the updates you ran. Needs Vulnerability checks on.
+* Work notes: optional time spent (hours and minutes) per task, totals on the report box, and time per client for this month and last month on the Clients screen. Shown on client reports only if you turn that on in Settings.
+* Favorite plugin sets on Add plugin: save the install list (directory plugins and web addresses) as a named set and add it to the list in one click.
+* WooCommerce shortcuts on a store's site page: Orders, Products, Analytics, Status and Settings open the store's admin already signed in.
+* Optional menu position (Settings > Menu, off by default): show the menu just below Comments.
+* Client form: empty fields now say "Default: …" so it's clear where their value comes from.
+* "Connector shown as" (Settings and per client): the name the connector has in client sites' plugin list. It stays visible; needs Unstoppable Site Connector 0.10.0.
 
 = 0.21.0 =
 * A short "Enjoying Unstoppable Site Manager?" line in the footer of the plugin's own screens, with a link to rate it on WordPress.org.
@@ -233,6 +242,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.22.0 =
+Security section in client reports, time on work notes, favorite plugin sets, WooCommerce shortcuts and more. Update your sites to Unstoppable Site Connector 0.10.0 to rename the connector in their plugin list.
 
 = 0.20.0 =
 Adds uptime monitoring with down and back-up emails, SSL expiry alerts and optional domain expiry alerts (Settings > Uptime and expiry alerts). Uptime checks start automatically every 5 minutes.

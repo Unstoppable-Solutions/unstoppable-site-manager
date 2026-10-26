@@ -206,7 +206,7 @@
 		}
 		a.classList.add('is-busy');
 		a.setAttribute('aria-busy', 'true');
-		post('login', { site: id }).then(function (res) {
+		post('login', { site: id, redirect: a.dataset.redirect || '' }).then(function (res) {
 			a.classList.remove('is-busy');
 			a.removeAttribute('aria-busy');
 			var url = res.success ? res.data.url : ((res.data && res.data.fallback) || fallback);

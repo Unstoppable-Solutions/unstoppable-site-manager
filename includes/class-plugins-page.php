@@ -17,7 +17,7 @@ final class USMD_Plugins_Page {
 	public static function hooks() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 11 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ), 11 );
-		foreach ( array( 'plugin_action', 'plugin_install', 'package_upload', 'repo_search', 'plugin_index' ) as $a ) {
+		foreach ( array( 'plugin_action', 'plugin_install', 'package_upload', 'repo_search', 'plugin_index', 'set_save', 'set_delete' ) as $a ) {
 			add_action( 'wp_ajax_usmd_' . $a, array( __CLASS__, $a ) );
 		}
 	}
@@ -42,6 +42,7 @@ final class USMD_Plugins_Page {
 				'view'    => self::is_add_view() ? 'add' : 'manage',
 				'sites'   => self::sites_for_js(),
 				'plugins' => self::is_add_view() ? array() : self::index(),
+				'sets'    => self::sets(),
 				'manage'  => admin_url( 'admin.php?page=' . self::SLUG ),
 				'protect' => array_values( array_unique( array( 'fm-connector', apply_filters( 'usmd_connector_slug', USMD_CONNECTOR_SLUG ) ) ) ),
 				'i18n'    => array(
@@ -237,6 +238,14 @@ final class USMD_Plugins_Page {
 
 		<div class="usmd-panel usmd-install-queue">
 			<h2><?php esc_html_e( 'Install list', 'unstoppable-site-manager' ); ?> <span id="usmd-install-status" class="usmd-install-status" role="status" aria-live="polite"></span></h2>
+			<div class="usmd-sets">
+				<label for="usmd-set-pick"><?php esc_html_e( 'Favorite sets', 'unstoppable-site-manager' ); ?></label>
+				<select id="usmd-set-pick"><option value=""><?php esc_html_e( 'Load a saved set…', 'unstoppable-site-manager' ); ?></option></select>
+				<button type="button" class="button" id="usmd-set-load" disabled><?php esc_html_e( 'Add to list', 'unstoppable-site-manager' ); ?></button>
+				<button type="button" class="button-link button-link-delete" id="usmd-set-delete" disabled><?php esc_html_e( 'Delete set', 'unstoppable-site-manager' ); ?></button>
+				<button type="button" class="button" id="usmd-set-save" disabled><?php esc_html_e( 'Save this list as a set', 'unstoppable-site-manager' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Save plugins you install on every new site (from the directory or a web address) and add them all in one click. Uploaded ZIP files are not saved in sets.', 'unstoppable-site-manager' ); ?></p>
+			</div>
 			<ul id="usmd-queue" class="usmd-queue"><li class="usmd-muted usmd-queue-empty"><?php esc_html_e( 'Nothing selected yet. Add plugins from the directory, a URL or a ZIP.', 'unstoppable-site-manager' ); ?></li></ul>
 			<div class="usmd-install-options">
 				<label><input type="checkbox" id="usmd-opt-activate" checked> <?php esc_html_e( 'Activate after install', 'unstoppable-site-manager' ); ?></label>
@@ -284,6 +293,79 @@ final class USMD_Plugins_Page {
 			wp_send_json_error( array( 'message' => $r->get_error_message() ) );
 		}
 		wp_send_json_success( array( 'results' => $r ) );
+	}
+
+	/* ---------- favorite sets ---------- */
+
+	const SETS     = 'usmd_plugin_sets';
+	const MAX_SETS = 30;
+
+	/** @return array [ { name, items: [ {type: wporg, slug, name} | {type: url, url, name} ] } ] */
+	public static function sets() {
+		$s = get_option( self::SETS );
+		return is_array( $s ) ? array_values( $s ) : array();
+	}
+
+	private static function clean_set_item( $it ) {
+		if ( ! is_array( $it ) ) {
+			return null;
+		}
+		$name = isset( $it['name'] ) ? substr( sanitize_text_field( (string) $it['name'] ), 0, 120 ) : '';
+		if ( isset( $it['type'] ) && 'wporg' === $it['type'] && ! empty( $it['slug'] ) ) {
+			$slug = sanitize_key( (string) $it['slug'] );
+			return $slug ? array( 'type' => 'wporg', 'slug' => $slug, 'name' => $name ? $name : $slug ) : null;
+		}
+		if ( isset( $it['type'] ) && 'url' === $it['type'] && ! empty( $it['url'] ) ) {
+			$url = esc_url_raw( (string) $it['url'], array( 'https', 'http' ) );
+			return $url ? array( 'type' => 'url', 'url' => $url, 'name' => $name ? $name : $url ) : null;
+		}
+		return null;
+	}
+
+	public static function set_save() {
+		self::guard();
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- checked in guard().
+		$name = isset( $_POST['name'] ) ? substr( trim( sanitize_text_field( wp_unslash( $_POST['name'] ) ) ), 0, 60 ) : '';
+		$raw  = isset( $_POST['items'] ) ? json_decode( wp_unslash( (string) $_POST['items'] ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- each item is cleaned below.
+		// phpcs:enable
+		$items = array_values( array_filter( array_map( array( __CLASS__, 'clean_set_item' ), is_array( $raw ) ? $raw : array() ) ) );
+		if ( '' === $name || ! $items ) {
+			wp_send_json_error( array( 'message' => __( 'Give the set a name and add at least one plugin from the directory or a web address.', 'unstoppable-site-manager' ) ) );
+		}
+		$sets = array();
+		foreach ( self::sets() as $s ) {
+			$sets[ strtolower( $s['name'] ) ] = $s;
+		}
+		$sets[ strtolower( $name ) ] = array(
+			'name'  => $name,
+			'items' => array_slice( $items, 0, 50 ),
+		);
+		if ( count( $sets ) > self::MAX_SETS ) {
+			wp_send_json_error( array( 'message' => __( 'You have reached the limit of 30 sets. Delete one first.', 'unstoppable-site-manager' ) ) );
+		}
+		uasort(
+			$sets,
+			static function ( $a, $b ) {
+				return strcasecmp( $a['name'], $b['name'] );
+			}
+		);
+		update_option( self::SETS, array_values( $sets ), false );
+		wp_send_json_success( array( 'sets' => self::sets() ) );
+	}
+
+	public static function set_delete() {
+		self::guard();
+		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked in guard().
+		$sets = array_values(
+			array_filter(
+				self::sets(),
+				static function ( $s ) use ( $name ) {
+					return strtolower( $s['name'] ) !== strtolower( $name );
+				}
+			)
+		);
+		update_option( self::SETS, $sets, false );
+		wp_send_json_success( array( 'sets' => $sets ) );
 	}
 
 	/** A plugin file like "dir/file.php": no traversal, no odd characters. */

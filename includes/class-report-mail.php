@@ -344,6 +344,48 @@ final class USMD_Report_Mail {
 	</table>
 </td></tr>
 
+<?php $sec = isset( $d['security'] ) ? $d['security'] : array( 'open' => array(), 'fixed' => array() ); ?>
+<?php if ( $sec['open'] || $sec['fixed'] ) : ?>
+<tr><td style="padding:20px 20px 0;">
+	<div style="font-size:16px;font-weight:700;padding-bottom:6px;border-bottom:2px solid <?php echo esc_attr( $accent ); ?>;"><?php esc_html_e( 'Security', 'unstoppable-site-manager' ); ?></div>
+	<?php if ( $sec['fixed'] ) : ?>
+		<div style="font-weight:700;margin:12px 0 2px;"><?php esc_html_e( 'Security fixes this month', 'unstoppable-site-manager' ); ?></div>
+		<?php foreach ( $sec['fixed'] as $f ) : ?>
+			<div style="padding:8px 0;border-top:1px solid <?php echo esc_attr( $rule ); ?>;">
+				<span style="color:<?php echo esc_attr( $tone['ok'][0] ); ?>;font-weight:700;">✓</span>
+				<strong><?php echo esc_html( $f[0] ); ?></strong> <span style="color:<?php echo esc_attr( $muted ); ?>;"><?php echo esc_html( $f[1] . ' → ' . $f[2] . ' · ' . USMD_Report::severity_label( $f[4] ) ); ?></span>
+				<div style="font-size:14px;color:<?php echo esc_attr( $muted ); ?>;">
+					<?php
+					/* translators: 1: number fixed, 2: titles. */
+					echo esc_html( sprintf( _n( 'Fixed %1$d issue: %2$s', 'Fixed %1$d issues, including: %2$s', $f[3], 'unstoppable-site-manager' ), $f[3], implode( '; ', $f[5] ) ) );
+					?>
+				</div>
+			</div>
+		<?php endforeach; ?>
+	<?php endif; ?>
+	<?php if ( $sec['open'] ) : ?>
+		<div style="font-weight:700;margin:12px 0 2px;"><?php esc_html_e( 'Still to fix', 'unstoppable-site-manager' ); ?></div>
+		<?php foreach ( $sec['open'] as $o ) : ?>
+			<div style="padding:8px 0;border-top:1px solid <?php echo esc_attr( $rule ); ?>;">
+				<span style="color:<?php echo esc_attr( $tone['bad'][0] ); ?>;font-weight:700;">!</span>
+				<strong><?php echo esc_html( $o[0] . ' ' . $o[1] ); ?></strong> <span style="color:<?php echo esc_attr( $tone['bad'][0] ); ?>;"><?php echo esc_html( USMD_Report::severity_label( $o[3] ) ); ?></span>
+				<div style="font-size:14px;color:<?php echo esc_attr( $muted ); ?>;"><?php echo esc_html( $o[2] ); ?></div>
+				<div style="font-size:14px;">
+					<?php
+					echo esc_html(
+						$o[4]
+							/* translators: %s: version. */
+							? sprintf( __( 'Fixed by updating to %s or newer.', 'unstoppable-site-manager' ), $o[4] )
+							: __( 'No fix released yet: we are watching it.', 'unstoppable-site-manager' )
+					);
+					?>
+				</div>
+			</div>
+		<?php endforeach; ?>
+	<?php endif; ?>
+</td></tr>
+<?php endif; ?>
+
 <?php if ( '' !== $d['note'] ) : ?>
 <tr><td style="padding:20px 20px 0;">
 	<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f6fb;border-left:4px solid <?php echo esc_attr( $accent ); ?>;"><tr><td style="padding:14px 18px;">
@@ -363,7 +405,7 @@ final class USMD_Report_Mail {
 			<tr>
 				<td width="64" valign="top" style="padding:9px 10px 9px 0;border-bottom:1px solid <?php echo esc_attr( $rule ); ?>;color:<?php echo esc_attr( $muted ); ?>;white-space:nowrap;"><?php echo esc_html( wp_date( 'M j', strtotime( $w['date'] . ' 12:00:00' ) ) ); ?></td>
 				<td valign="top" style="padding:9px 0;border-bottom:1px solid <?php echo esc_attr( $rule ); ?>;">
-					<strong><?php echo esc_html( $w['title'] ); ?></strong>
+					<strong><?php echo esc_html( $w['title'] ); ?></strong><?php if ( ! empty( $w['min'] ) && ! empty( USMD_Admin::settings()['report_time'] ) ) : ?> <span style="color:#5b6470;font-weight:400;">(<?php echo esc_html( USMD_Work::fmt( $w['min'] ) ); ?>)</span><?php endif; ?>
 					<?php if ( '' !== $w['desc'] ) : ?>
 						<div style="margin-top:3px;color:<?php echo esc_attr( $muted ); ?>;"><?php echo nl2br( esc_html( $w['desc'] ) ); ?></div>
 					<?php endif; ?>

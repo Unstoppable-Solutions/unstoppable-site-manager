@@ -629,3 +629,27 @@
 /* Review request */
 .usmd-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #footer-left .usmd-stars { color: #dba617; text-decoration: none; letter-spacing: 1px; }
+
+/* Report: security section */
+.usmd-r-security h3 { font-size: 14px; margin: 16px 0 4px; }
+.usmd-r-sec-list { list-style: none; margin: 0; padding: 0; }
+.usmd-r-sec-list li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--usmd-r-rule); margin: 0; }
+.usmd-r-sec-list li:last-child { border-bottom: 0; }
+.usmd-r-sev { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: #f0f0f1; color: #50575e; }
+.usmd-r-sev.is-critical, .usmd-r-sev.is-high { background: #fdecea; color: #b42318; }
+.usmd-r-sev.is-medium { background: #fdf3e2; color: #a15c00; }
+
+/* WooCommerce shortcuts */
+.usmd-woo-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+
+/* Work notes: time spent */
+.usmd-work-spent input[type=number] { width: 64px; }
+.usmd-work-time { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 3px; background: #f0f0f1; color: #50575e; font-size: 12px; font-weight: 400; }
+.usmd-work-spent { flex: 0 0 auto; margin: 0; }
+
+/* Favorite plugin sets */
+.usmd-sets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 12px; padding: 10px 12px; background: #f6f7f7; border-radius: 6px; }
+.usmd-sets label { font-weight: 600; margin-right: 4px; }
+.usmd-sets select { max-width: 260px; }
+.usmd-sets #usmd-set-save { margin-left: auto; }
+.usmd-sets .description { flex-basis: 100%; margin: 2px 0 0; }

@@ -8,6 +8,11 @@
  * "Thank you for creating with WordPress". It never appears on the public site,
  * and the site's administrators can switch it off on their side.
  *
+ * Connector 0.10.0 and newer can also show the connector under your name in the
+ * client's plugin list (for example "Website Care by Example Agency"). It stays
+ * listed and active like any plugin, and its description still names
+ * Unstoppable Site Connector, so the site owner can always find it.
+ *
  * Each status report from a site says what branding it has (a hash). When that
  * differs from what this dashboard wants, a background job sends the new text.
  */
@@ -17,6 +22,7 @@ defined( 'ABSPATH' ) || exit;
 final class USMD_Branding {
 
 	const MIN_CONNECTOR = '0.7.0';
+	const NAME_FROM     = '0.10.0'; // Connector that understands a display name.
 	const OPT_REFUSED   = 'usmd_branding_refused';
 	const HOOK          = 'usmd_branding_site';
 
@@ -24,16 +30,31 @@ final class USMD_Branding {
 		add_action( self::HOOK, array( __CLASS__, 'send' ), 10, 1 );
 	}
 
-	/** @return array { text, url, hash } this dashboard wants on the site. */
+	/** @return array { text, url, name, hash } this dashboard wants on the site. */
 	public static function wanted( $site ) {
 		$s    = USMD_Clients::settings_for( $site );
 		$text = isset( $s['footer_text'] ) ? trim( (string) $s['footer_text'] ) : '';
 		$url  = '' !== $text && ! empty( $s['footer_url'] ) ? (string) $s['footer_url'] : '';
+		$name = self::names_supported( $site ) && isset( $s['connector_name'] ) ? trim( (string) $s['connector_name'] ) : '';
 		return array(
 			'text' => $text,
 			'url'  => $url,
-			'hash' => '' === $text ? '' : md5( $text . "\n" . $url ),
+			'name' => $name,
+			'hash' => self::hash( $text, $url, $name ),
 		);
+	}
+
+	/** Same formula as the connector's USCN_Branding::hash(). */
+	public static function hash( $text, $url, $name ) {
+		if ( '' === $text && '' === $name ) {
+			return '';
+		}
+		return md5( $text . "\n" . $url . ( '' !== $name ? "\n" . $name : '' ) );
+	}
+
+	public static function names_supported( $site ) {
+		$v = USMD_Sites::connector_version( $site );
+		return '' !== $v && version_compare( $v, self::NAME_FROM, '>=' );
 	}
 
 	public static function supported( $site ) {
@@ -82,7 +103,11 @@ final class USMD_Branding {
 			return;
 		}
 		$want    = self::wanted( $site );
-		$r       = USMD_Client::call( $site, 'branding', array( 'text' => $want['text'], 'url' => $want['url'] ), 30, false );
+		$args    = array( 'text' => $want['text'], 'url' => $want['url'] );
+		if ( self::names_supported( $site ) ) {
+			$args['name'] = $want['name'];
+		}
+		$r       = USMD_Client::call( $site, 'branding', $args, 30, false );
 		$refused = self::refused();
 		if ( is_wp_error( $r ) ) {
 			if ( 'not_permitted' === USMD_Client::connector_code( $r ) ) {
@@ -125,13 +150,22 @@ final class USMD_Branding {
 		if ( '' !== $want['text'] && isset( $refused[ (int) $site->id ] ) && $refused[ (int) $site->id ] === $want['hash'] ) {
 			return __( 'Admin footer branding is switched off on this site by its administrator.', 'unstoppable-site-manager' );
 		}
-		if ( '' === $want['text'] ) {
+		if ( '' === $want['text'] && '' === $want['name'] ) {
 			return '';
 		}
+		$parts = array();
+		if ( '' !== $want['text'] ) {
+			/* translators: %s: footer text. */
+			$parts[] = sprintf( __( 'admin footer "%s"', 'unstoppable-site-manager' ), $want['text'] );
+		}
+		if ( '' !== $want['name'] ) {
+			/* translators: %s: connector display name. */
+			$parts[] = sprintf( __( 'connector listed as "%s"', 'unstoppable-site-manager' ), $want['name'] );
+		}
 		return self::current( $site ) === $want['hash']
-			/* translators: %s: footer text. */
-			? sprintf( __( 'Admin footer on this site: "%s".', 'unstoppable-site-manager' ), $want['text'] )
-			/* translators: %s: footer text. */
-			: sprintf( __( 'Admin footer "%s" will be applied on the next check.', 'unstoppable-site-manager' ), $want['text'] );
+			/* translators: %s: list of branding items. */
+			? sprintf( __( 'Branding on this site: %s.', 'unstoppable-site-manager' ), implode( '; ', $parts ) )
+			/* translators: %s: list of branding items. */
+			: sprintf( __( 'Branding (%s) will be applied on the next check.', 'unstoppable-site-manager' ), implode( '; ', $parts ) );
 	}
 }

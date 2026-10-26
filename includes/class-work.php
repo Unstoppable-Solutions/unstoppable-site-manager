@@ -2,7 +2,9 @@
 /**
  * Work notes: work you did for a client outside of updates (a new page, a form
  * fix, photo changes...). Each note has a date, a short task name and an
- * optional description, and appears on that month's client report.
+ * optional description, and appears on that month's client report. Time spent
+ * (minutes) is optional and stays on the dashboard unless "Show time on client
+ * reports" is on in Settings; the Clients screen totals it per client per month.
  *
  * Notes are stored as activity rows of type "work" on the dashboard, so they
  * fall into the right month like everything else on the report.
@@ -16,6 +18,7 @@ final class USMD_Work {
 	const ACTION    = 'note';
 	const MAX_TITLE = 60;
 	const MAX_DESC  = 2000;
+	const MAX_MIN   = 6000; // 100 hours on one task.
 
 	public static function hooks() {
 		add_action( 'admin_post_usmd_work_save', array( __CLASS__, 'handle_save' ) );
@@ -33,6 +36,7 @@ final class USMD_Work {
 					'date'  => wp_date( 'Y-m-d', strtotime( $r->created_at . ' UTC' ) ),
 					'title' => (string) $r->object,
 					'desc'  => isset( $d['desc'] ) ? (string) $d['desc'] : '',
+					'min'   => isset( $d['min'] ) ? (int) $d['min'] : 0,
 				);
 			}
 		}
@@ -74,7 +78,9 @@ final class USMD_Work {
 		$date  = isset( $_POST['date'] ) ? sanitize_text_field( wp_unslash( $_POST['date'] ) ) : '';
 		$desc  = isset( $_POST['desc'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['desc'] ) ) ) : '';
 		$month = isset( $_POST['month'] ) ? sanitize_text_field( wp_unslash( $_POST['month'] ) ) : '';
+		$mins  = ( isset( $_POST['hours'] ) ? absint( $_POST['hours'] ) * 60 : 0 ) + ( isset( $_POST['minutes'] ) ? absint( $_POST['minutes'] ) : 0 );
 		// phpcs:enable
+		$mins = min( self::MAX_MIN, $mins );
 		if ( ! $site ) {
 			wp_die( esc_html__( 'Site not found.', 'unstoppable-site-manager' ) );
 		}
@@ -89,7 +95,7 @@ final class USMD_Work {
 		$data  = array(
 			'created_at' => $utc,
 			'object'     => $title,
-			'details'    => wp_json_encode( array( 'desc' => $desc ) ),
+			'details'    => wp_json_encode( $mins ? array( 'desc' => $desc, 'min' => $mins ) : array( 'desc' => $desc ) ),
 		);
 		if ( $id && self::row( $id, $site->id ) ) {
 			$wpdb->update( $wpdb->prefix . 'usmd_activity', $data, array( 'id' => $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
@@ -143,6 +149,46 @@ final class USMD_Work {
 		exit;
 	}
 
+	/** 90 -> "1 h 30 min". */
+	public static function fmt( $minutes ) {
+		$minutes = (int) $minutes;
+		$h       = intdiv( $minutes, 60 );
+		$m       = $minutes % 60;
+		if ( $h && $m ) {
+			/* translators: 1: hours, 2: minutes. */
+			return sprintf( __( '%1$d h %2$d min', 'unstoppable-site-manager' ), $h, $m );
+		}
+		/* translators: %d: hours. */
+		return $h ? sprintf( __( '%d h', 'unstoppable-site-manager' ), $h ) : sprintf( /* translators: %d: minutes. */ __( '%d min', 'unstoppable-site-manager' ), $m );
+	}
+
+	/**
+	 * Minutes of work per site in a period (site time zone month, as UTC bounds).
+	 *
+	 * @return array site id => minutes.
+	 */
+	public static function minutes_by_site( $from_utc, $to_utc ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT site_id, details FROM %i WHERE type = %s AND action = %s AND created_at >= %s AND created_at < %s', USMD_Sites::ta(), self::TYPE, self::ACTION, $from_utc, $to_utc ) );
+		$out  = array();
+		foreach ( $rows as $r ) {
+			$d = json_decode( (string) $r->details, true );
+			if ( ! empty( $d['min'] ) ) {
+				$out[ (int) $r->site_id ] = ( isset( $out[ (int) $r->site_id ] ) ? $out[ (int) $r->site_id ] : 0 ) + (int) $d['min'];
+			}
+		}
+		return $out;
+	}
+
+	/** UTC bounds of a month in the site's time zone ("Y-m"). */
+	public static function month_bounds( $month ) {
+		$start = new DateTimeImmutable( $month . '-01 00:00:00', wp_timezone() );
+		$end   = $start->modify( '+1 month' );
+		$utc   = new DateTimeZone( 'UTC' );
+		return array( $start->setTimezone( $utc )->format( 'Y-m-d H:i:s' ), $end->setTimezone( $utc )->format( 'Y-m-d H:i:s' ) );
+	}
+
 	/** The "Work you did" box above the report (screen only, never printed). */
 	public static function box( $site, $month, array $work ) {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- display only.
@@ -166,9 +212,10 @@ final class USMD_Work {
 				<?php esc_html_e( 'Work you did this month', 'unstoppable-site-manager' ); ?>
 				<span class="usmd-muted">
 					<?php
+					$total = array_sum( wp_list_pluck( $work, 'min' ) );
 					echo $work
 						/* translators: %d: number of tasks. */
-						? esc_html( sprintf( _n( '%d task', '%d tasks', count( $work ), 'unstoppable-site-manager' ), count( $work ) ) )
+						? esc_html( sprintf( _n( '%d task', '%d tasks', count( $work ), 'unstoppable-site-manager' ), count( $work ) ) . ( $total ? ' · ' . self::fmt( $total ) : '' ) )
 						: esc_html__( 'Add tasks that aren\'t updates', 'unstoppable-site-manager' );
 					?>
 				</span>
@@ -183,7 +230,7 @@ final class USMD_Work {
 					<?php foreach ( $work as $w ) : ?>
 						<li>
 							<span class="usmd-work-date"><?php echo esc_html( wp_date( 'M j', strtotime( $w['date'] . ' 12:00:00' ) ) ); ?></span>
-							<span class="usmd-work-text"><strong><?php echo esc_html( $w['title'] ); ?></strong><?php if ( '' !== $w['desc'] ) : ?><span><?php echo esc_html( $w['desc'] ); ?></span><?php endif; ?></span>
+							<span class="usmd-work-text"><strong><?php echo esc_html( $w['title'] ); ?></strong><?php if ( $w['min'] ) : ?> <span class="usmd-work-time"><?php echo esc_html( self::fmt( $w['min'] ) ); ?></span><?php endif; ?><?php if ( '' !== $w['desc'] ) : ?><span><?php echo esc_html( $w['desc'] ); ?></span><?php endif; ?></span>
 							<span class="usmd-work-actions">
 								<a href="<?php echo esc_url( USMD_Admin::site_url( $site->id, array( 'view' => 'report', 'month' => $month, 'edit_work' => $w['id'] ) ) . '#usmd-work' ); ?>"><?php esc_html_e( 'Edit', 'unstoppable-site-manager' ); ?></a>
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-work-delete">
@@ -219,6 +266,13 @@ final class USMD_Work {
 					<p class="usmd-work-day">
 						<label for="usmd-work-date"><?php esc_html_e( 'Date', 'unstoppable-site-manager' ); ?></label>
 						<input type="date" id="usmd-work-date" name="date" required value="<?php echo esc_attr( $edit ? $edit['date'] : $day ); ?>">
+					</p>
+					<p class="usmd-work-spent">
+						<label for="usmd-work-hours"><?php esc_html_e( 'Time spent (optional)', 'unstoppable-site-manager' ); ?></label>
+						<span>
+							<input type="number" id="usmd-work-hours" name="hours" min="0" max="100" step="1" value="<?php echo $edit && $edit['min'] ? (int) intdiv( $edit['min'], 60 ) : ''; ?>" placeholder="0" aria-label="<?php esc_attr_e( 'Hours', 'unstoppable-site-manager' ); ?>"> <?php esc_html_e( 'h', 'unstoppable-site-manager' ); ?>
+							<input type="number" id="usmd-work-minutes" name="minutes" min="0" max="59" step="5" value="<?php echo $edit && $edit['min'] ? (int) ( $edit['min'] % 60 ) : ''; ?>" placeholder="0" aria-label="<?php esc_attr_e( 'Minutes', 'unstoppable-site-manager' ); ?>"> <?php esc_html_e( 'min', 'unstoppable-site-manager' ); ?>
+						</span>
 					</p>
 				</div>
 				<p>
