@@ -6,7 +6,7 @@ foreach ( array( 'usmd_sites', 'usmd_activity', 'usmd_files', 'usmd_clients' ) a
 	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . $usmd_table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- removing this plugin's own tables on uninstall.
 }
 
-foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk', 'usmd_branding_refused', 'usmd_move', 'usmd_bg_last', 'usmd_digest_last', 'usmd_uptime', 'usmd_expiry', 'usmd_domains', 'usmd_uptime_last', 'usmd_uptime_net', 'usmd_uptime_since' ) as $usmd_opt ) {
+foreach ( array( 'usmd_keys', 'usmd_settings', 'usmd_db_version', 'usmd_migrated', 'usmd_packages', 'usmd_report_notes', 'usmd_vulns', 'usmd_report_sent', 'usmd_connector_zip', 'usmd_allowed_users', 'usmd_bulk', 'usmd_branding_refused', 'usmd_move', 'usmd_bg_last', 'usmd_digest_last', 'usmd_uptime', 'usmd_expiry', 'usmd_domains', 'usmd_uptime_last', 'usmd_uptime_net', 'usmd_uptime_since', 'usmd_review', 'usmd_installed' ) as $usmd_opt ) {
 	delete_option( $usmd_opt );
 }
 wp_clear_scheduled_hook( 'usmd_sync_tick' );

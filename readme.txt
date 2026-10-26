@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.20.0
+Stable tag: 0.21.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -99,6 +99,10 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.21.0 =
+* A short "Enjoying Unstoppable Site Manager?" line in the footer of the plugin's own screens, with a link to rate it on WordPress.org.
+* One review request, only on the plugin's own screens and only after 14 days with at least 3 connected sites: Leave a review, Maybe later (asks again in 30 days) or Don't ask again. It asks at most twice, and links to support if something isn't working.
 
 = 0.20.0 =
 * Uptime monitoring (Settings > Uptime and expiry alerts): the dashboard checks every site's home page every 5 minutes (or 15 or 30, or off), twenty at a time. Two failures in a row mark a site Down: a Down tag on its card, an email, and an entry in its activity log; another email when it's back, with how long it was down. A 503 during maintenance mode counts as up, and when most sites fail at once (the dashboard's own connection) no alerts go out.

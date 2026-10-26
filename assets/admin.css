@@ -625,3 +625,7 @@
 .usmd-pill-maint.is-coming_soon { background: #e1f3f7; color: #0f5e72; }
 .usmd-maint-tpl { position: relative; }
 .usmd-card .usmd-pill-down, .usmd-card .usmd-pill-maint { display: inline-block; align-self: flex-start; width: auto; margin: 4px 4px 0 0; font-size: 11px; }
+
+/* Review request */
+.usmd-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#footer-left .usmd-stars { color: #dba617; text-decoration: none; letter-spacing: 1px; }

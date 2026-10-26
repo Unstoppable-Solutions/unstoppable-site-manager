@@ -560,6 +560,16 @@
 	initSitePage();
 	if (document.querySelector('.usmd-site')) { refreshSitePage(); }
 
+	/* Review request: "Leave a review" opens WordPress.org in a new tab (which records it) and hides the notice;
+	   the close button counts as "Maybe later". */
+	var review = document.querySelector('.usmd-review');
+	if (review) {
+		review.addEventListener('click', function (e) {
+			if (e.target.closest('[data-act="review"]')) { setTimeout(function () { review.remove(); }, 100); return; }
+			if (e.target.closest('.notice-dismiss')) { fetch(review.dataset.later, { credentials: 'same-origin', redirect: 'manual' }); }
+		});
+	}
+
 	/* Site page: maintenance mode on/off (delegated: the page is swapped on reload). */
 	function maintenance(e) {
 		var b = e.target.closest && e.target.closest('.usmd-maint-go');
