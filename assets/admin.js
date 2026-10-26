@@ -404,6 +404,11 @@
 	document.querySelectorAll('.usmd-filters .button').forEach(function (b) {
 		b.addEventListener('click', function () { setFilter(b.dataset.filter); });
 	});
+	/* ?filter=updates / problem (links from the toolbar) opens the Sites screen filtered. */
+	if (document.getElementById('usmd-grid')) {
+		var startFilter = new URLSearchParams(window.location.search).get('filter');
+		if (startFilter && document.querySelector('[data-filter="' + startFilter.replace(/[^a-z-]/g, '') + '"]')) { setFilter(startFilter); }
+	}
 	/* Clicking a tile shows just those sites; clicking it again shows all. */
 	document.querySelectorAll('.usmd-stat').forEach(function (b) {
 		b.addEventListener('click', function () { setFilter(filter === b.dataset.filter ? 'all' : b.dataset.filter); });

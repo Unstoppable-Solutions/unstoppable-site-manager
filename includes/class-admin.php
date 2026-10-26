@@ -123,6 +123,7 @@ final class USMD_Admin {
 				'expiry_alerts'  => 1,    // SSL (and domain, when on) renewal emails.
 				'domain_check'   => 0,    // Opt-in: domain names are looked up at rdap.org.
 				'menu_high'      => 0,    // Opt-in: menu just below Comments.
+				'admin_bar'      => 1,    // "Site Manager" in the top toolbar.
 			)
 		);
 	}
@@ -1292,6 +1293,10 @@ final class USMD_Admin {
 						<label><input type="checkbox" name="menu_high" value="1" <?php checked( ! empty( $s['menu_high'] ) ); ?>> <?php esc_html_e( 'Show Unstoppable Site Manager near the top of the admin menu, just below Comments', 'unstoppable-site-manager' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Off by default: WordPress then lists it after other plugins\' menus. Only changes this dashboard\'s own admin menu.', 'unstoppable-site-manager' ); ?></p>
 					</td></tr>
+					<tr><th><?php esc_html_e( 'Top toolbar', 'unstoppable-site-manager' ); ?></th><td>
+						<label><input type="checkbox" name="admin_bar" value="1" <?php checked( ! empty( $s['admin_bar'] ) ); ?>> <?php esc_html_e( 'Show Site Manager in the black toolbar at the top, with the number of updates waiting', 'unstoppable-site-manager' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Only for people allowed to use the dashboard. The dropdown links to Sites, Plugins, Clients, Add Site, Reports and Settings, and shows sites that need attention.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
 				</table>
 				<h2>Connection details</h2>
 				<table class="form-table" role="presentation">
@@ -1345,6 +1350,7 @@ final class USMD_Admin {
 				'expiry_alerts'  => empty( $_POST['expiry_alerts'] ) ? 0 : 1,
 				'domain_check'   => empty( $_POST['domain_check'] ) ? 0 : 1,
 				'menu_high'      => empty( $_POST['menu_high'] ) ? 0 : 1,
+				'admin_bar'      => empty( $_POST['admin_bar'] ) ? 0 : 1,
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.

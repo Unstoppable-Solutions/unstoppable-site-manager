@@ -106,6 +106,7 @@ This plugin connects to the following services.
 * Favorite plugin sets on Add plugin: save the install list (directory plugins and web addresses) as a named set and add it to the list in one click.
 * WooCommerce shortcuts on a store's site page: Orders, Products, Analytics, Status and Settings open the store's admin already signed in.
 * Optional menu position (Settings > Menu, off by default): show the menu just below Comments.
+* Site Manager in the top toolbar: updates waiting as a red count, sites needing attention, and links to every screen (Settings > Menu to switch it off).
 * Client form: empty fields now say "Default: …" so it's clear where their value comes from.
 * "Connector shown as" (Settings and per client): the name the connector has in client sites' plugin list. It stays visible; needs Unstoppable Site Connector 0.10.0.
 

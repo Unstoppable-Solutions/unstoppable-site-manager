@@ -55,6 +55,7 @@ require_once USMD_DIR . 'includes/class-maintenance.php';
 require_once USMD_DIR . 'includes/class-watch.php';
 require_once USMD_DIR . 'includes/class-monitor.php';
 require_once USMD_DIR . 'includes/class-review.php';
+require_once USMD_DIR . 'includes/class-toolbar.php';
 require_once USMD_DIR . 'includes/class-connector-zip.php';
 
 final class USMD_Plugin {
@@ -76,6 +77,7 @@ final class USMD_Plugin {
 		USMD_Sync::hooks();
 		USMD_Watch::hooks();
 		USMD_Monitor::hooks();
+		USMD_Toolbar::hooks();
 		USMD_Thumbs::hooks();
 		if ( is_admin() ) {
 			USMD_Admin::hooks();

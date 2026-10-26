@@ -171,6 +171,9 @@ final class USMD_Sites {
 	}
 
 	public static function store_status( $id, array $status, $check_branding = true ) {
+		if ( class_exists( 'USMD_Toolbar' ) ) {
+			USMD_Toolbar::flush(); // Counts in the top toolbar.
+		}
 		global $wpdb;
 		$sum = isset( $status['summary'] ) ? $status['summary'] : array();
 		$wpdb->update(
