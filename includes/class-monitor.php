@@ -3,11 +3,14 @@
  * Uptime monitoring and SSL / domain expiry alerts.
  *
  * Uptime: every few minutes the dashboard requests each client site's home page,
- * twenty at a time. A site that fails twice in a row (no answer, or a 5xx error) is
- * "down" and you get one email; when it answers again you get another, with how
- * long it was down. A 503 while the site is in maintenance mode counts as up.
- * If most sites fail in the same run, the problem is almost certainly this
- * dashboard's own connection, so no alerts go out for that run.
+ * a few at a time. A failed check is tried again with more time, and if the home
+ * page still doesn't load, the site's connector is asked directly: when WordPress
+ * answers, the site is up (only its home page is slow or blocked). A site that
+ * keeps failing for the grace time in Settings (10 minutes by default) is "down"
+ * and you get one email; when it answers again you get another, with how long it
+ * was down. A 503 while the site is in maintenance mode counts as up. If many
+ * sites fail at once, the problem is almost certainly this dashboard's own
+ * connection, so no alerts go out for that run.
  *
  * SSL: once a day per site the dashboard opens a TLS connection to the site and
  * reads the certificate visitors get, so an expiring certificate is caught even
@@ -34,8 +37,11 @@ final class USMD_Monitor {
 	const OPT_DOMAINS = 'usmd_domains';     // domain => RDAP result.
 	const OPT_LAST    = 'usmd_uptime_last'; // When the last uptime run started.
 	const OPT_NET     = 'usmd_uptime_net';  // When this dashboard last looked offline.
-	const BATCH       = 20;                 // Sites requested at the same time.
-	const FAILS       = 2;                  // Failures in a row before a site counts as down.
+	const BATCH       = 8;                  // Sites requested at the same time (gentle on shared hosts).
+	const TIMEOUT     = 20;                 // Seconds for the first check.
+	const RETRY_BATCH = 3;                  // A failed site is checked again, a few at a time...
+	const RETRY_WAIT  = 30;                 // ...with a longer timeout.
+	const FAILS       = 2;                  // Failed runs in a row before a site can count as down.
 	const SSL_STEPS   = array( 14, 7, 3, 1, 0 );
 	const DOM_STEPS   = array( 30, 14, 7, 1, 0 );
 	const SSL_PER_RUN = 25;
@@ -126,19 +132,21 @@ final class USMD_Monitor {
 	}
 
 	/**
-	 * Request every site's home page, BATCH at a time.
+	 * Request every site's home page, a batch at a time.
 	 *
-	 * @param object[]|null $sites Sites to check (all when null).
+	 * @param object[]|null $sites   Sites to check (all when null).
+	 * @param int           $batch   Requests at the same time.
+	 * @param int           $timeout Seconds before a request counts as no answer.
 	 * @return array site id => [ ok, code, ms, error ].
 	 */
-	public static function probe( $sites = null ) {
+	public static function probe( $sites = null, $batch = self::BATCH, $timeout = self::TIMEOUT ) {
 		$sites  = null === $sites ? USMD_Sites::all() : $sites;
 		$cls    = self::requests_class();
 		$out    = array();
 		$agent  = 'Mozilla/5.0 (compatible; UnstoppableSiteManager-Uptime/' . USMD_VERSION . '; +' . home_url( '/' ) . ')';
 		$bundle = ABSPATH . WPINC . '/certificates/ca-bundle.crt';
 		$hooks_cls = class_exists( '\WpOrg\Requests\Hooks' ) ? '\WpOrg\Requests\Hooks' : 'Requests_Hooks';
-		foreach ( array_chunk( $sites, self::BATCH ) as $chunk ) {
+		foreach ( array_chunk( $sites, max( 1, (int) $batch ) ) as $chunk ) {
 			$reqs  = array();
 			$times = array();
 			foreach ( $chunk as $site ) {
@@ -154,12 +162,12 @@ final class USMD_Monitor {
 					}
 				);
 				$reqs[ $id ] = array(
-					'url'     => trailingslashit( $site->url ) . '?usmd_uptime=' . time(), // Skip page caches that hide an outage.
+					'url'     => trailingslashit( $site->url ), // The page visitors get (cached pages are fine: they still mean the server answers).
 					'type'    => 'GET',
 					'headers' => array( 'User-Agent' => $agent ),
 					'options' => array(
-						'timeout'          => 12,
-						'connect_timeout'  => 10,
+						'timeout'          => $timeout,
+						'connect_timeout'  => min( 15, $timeout ),
 						'follow_redirects' => true,
 						'redirects'        => 5,
 						'max_bytes'        => 65536,
@@ -171,7 +179,7 @@ final class USMD_Monitor {
 			}
 			$start = microtime( true );
 			try {
-				$res = call_user_func( array( $cls, 'request_multiple' ), $reqs, array( 'timeout' => 12 ) );
+				$res = call_user_func( array( $cls, 'request_multiple' ), $reqs, array( 'timeout' => $timeout ) );
 			} catch ( Exception $e ) {
 				$res = array();
 			}
@@ -181,7 +189,7 @@ final class USMD_Monitor {
 				$r  = isset( $res[ $id ] ) ? $res[ $id ] : null;
 				if ( ! is_object( $r ) || ! isset( $r->status_code ) || $r instanceof Exception ) {
 					$err        = $r instanceof Exception ? $r->getMessage() : __( 'No answer', 'unstoppable-site-manager' );
-					$out[ $id ] = array( false, 0, $ms, self::short_error( $err ) );
+					$out[ $id ] = array( false, 0, $ms, self::short_error( $err, $timeout ) );
 					continue;
 				}
 				$code    = (int) $r->status_code;
@@ -195,10 +203,11 @@ final class USMD_Monitor {
 		return $out;
 	}
 
-	private static function short_error( $msg ) {
+	private static function short_error( $msg, $timeout = self::TIMEOUT ) {
 		$msg = (string) $msg;
 		if ( preg_match( '/timed? ?out/i', $msg ) ) {
-			return __( 'Timed out (no answer within 12 seconds)', 'unstoppable-site-manager' );
+			/* translators: %d: seconds. */
+			return sprintf( __( 'Timed out (no answer within %d seconds)', 'unstoppable-site-manager' ), $timeout );
 		}
 		if ( preg_match( '/resolve host|getaddrinfo|Could not resolve/i', $msg ) ) {
 			return __( 'Domain not found (DNS)', 'unstoppable-site-manager' );
@@ -221,13 +230,14 @@ final class USMD_Monitor {
 		if ( ! get_option( 'usmd_uptime_since' ) ) {
 			update_option( 'usmd_uptime_since', time(), false ); // Uptime figures cover the time from here on.
 		}
-		$res    = self::probe( $sites );
+		$res = self::confirm( $sites, self::probe( $sites ) );
 		$failed = count( array_filter( $res, static function ( $r ) { return ! $r[0]; } ) );
 		$now    = time();
 		$all    = self::states();
+		$grace  = self::grace();
 
-		// Most sites failing at once: this dashboard's connection, not the sites.
-		if ( count( $sites ) >= 4 && $failed >= max( 3, (int) ceil( count( $sites ) * 0.6 ) ) ) {
+		// Many sites failing at once: this dashboard's connection, not the sites.
+		if ( count( $sites ) >= 4 && $failed >= max( 3, (int) ceil( count( $sites ) * 0.5 ) ) ) {
 			update_option( self::OPT_NET, $now, false );
 			return array( 'network' => true );
 		}
@@ -240,6 +250,7 @@ final class USMD_Monitor {
 				continue;
 			}
 			list( $ok, $code, $ms, $err ) = $res[ $id ];
+			$note = isset( $res[ $id ][4] ) ? $res[ $id ][4] : '';
 			$s = isset( $all[ $id ] ) ? $all[ $id ] : array( 'state' => 'unknown', 'since' => $now, 'fails' => 0, 'first' => 0 );
 			$s['checked'] = $now;
 			$s['code']    = $code;
@@ -257,13 +268,14 @@ final class USMD_Monitor {
 				$s['fails'] = 0;
 				$s['first'] = 0;
 				$s['error'] = '';
+				$s['note']  = $note; // "Home page slow, WordPress answered" shows on the site page.
 			} else {
 				$s['fails'] = (int) $s['fails'] + 1;
 				$s['error'] = $err;
 				if ( ! $s['first'] ) {
 					$s['first'] = $now;
 				}
-				if ( 'down' !== $s['state'] && $s['fails'] >= self::FAILS ) {
+				if ( 'down' !== $s['state'] && $s['fails'] >= self::FAILS && $now - $s['first'] >= $grace - 60 ) {
 					$s['state'] = 'down';
 					$s['since'] = $s['first'];
 					$down[]     = array( $site, $err );
@@ -284,6 +296,59 @@ final class USMD_Monitor {
 			'down' => $down,
 			'up'   => $up,
 		);
+	}
+
+	/** Minutes a site must keep failing before it counts as down (Settings), in seconds. */
+	public static function grace() {
+		$g = (int) USMD_Admin::settings()['uptime_grace'];
+		return in_array( $g, array( 5, 10, 15, 30 ), true ) ? $g * MINUTE_IN_SECONDS : 10 * MINUTE_IN_SECONDS;
+	}
+
+	/**
+	 * Second opinion for sites whose first check failed, so a slow page or a
+	 * busy moment isn't reported as an outage:
+	 * 1. check again a few at a time with a longer timeout;
+	 * 2. still failing: ask the site's connector (a small signed request that
+	 *    skips the theme and page building). If WordPress answers, the site is up
+	 *    and only its home page is slow or blocked; that is noted, not alerted.
+	 */
+	private static function confirm( array $sites, array $res ) {
+		$by_id = array();
+		foreach ( $sites as $s ) {
+			$by_id[ (int) $s->id ] = $s;
+		}
+		$failed = array();
+		foreach ( $res as $id => $r ) {
+			if ( ! $r[0] && isset( $by_id[ $id ] ) ) {
+				$failed[ $id ] = $by_id[ $id ];
+			}
+		}
+		if ( ! $failed ) {
+			return $res;
+		}
+		// Many failing at once: let the dashboard-connection check decide; don't spend minutes re-checking.
+		if ( count( $sites ) >= 4 && count( $failed ) >= max( 3, (int) ceil( count( $sites ) * 0.5 ) ) ) {
+			return $res;
+		}
+		sleep( 5 );
+		$again = self::probe( array_values( $failed ), self::RETRY_BATCH, self::RETRY_WAIT );
+		$tried = 0;
+		foreach ( $again as $id => $r ) {
+			if ( $r[0] ) {
+				$res[ $id ] = $r;
+				continue;
+			}
+			$res[ $id ] = $r;
+			if ( $tried++ >= 10 ) {
+				continue; // Enough connector checks for one run.
+			}
+			$ping = USMD_Client::call( $by_id[ $id ], 'ping', array(), 15, false );
+			if ( ! is_wp_error( $ping ) ) {
+				/* translators: %s: reason the home page failed. */
+				$res[ $id ] = array( true, $r[1], $r[2], '', sprintf( __( 'Home page did not load (%s), but WordPress answered', 'unstoppable-site-manager' ), $r[3] ) );
+			}
+		}
+		return $res;
 	}
 
 	public static function duration( $secs ) {
@@ -658,6 +723,9 @@ final class USMD_Monitor {
 				$p = self::uptime_percent( $site->id, time() - 30 * DAY_IN_SECONDS, time() );
 				/* translators: 1: response time in ms, 2: time ago. */
 				$txt = sprintf( __( 'Up · %1$d ms · checked %2$s ago', 'unstoppable-site-manager' ), $s['ms'], human_time_diff( $s['checked'] ) );
+				if ( ! empty( $s['note'] ) ) {
+					$txt .= ' · ' . $s['note'];
+				}
 				if ( null !== $p ) {
 					/* translators: %s: percent. */
 					$txt .= ' · ' . sprintf( __( '%s%% last 30 days', 'unstoppable-site-manager' ), self::fmt_pct( $p ) );

@@ -120,6 +120,7 @@ final class USMD_Admin {
 				'digest_hour'    => 7,
 				'uptime'         => '5',  // Minutes between uptime checks: 5, 15, 30 or off.
 				'uptime_alerts'  => 1,
+				'uptime_grace'   => 10,   // Minutes of failing before a site counts as down.
 				'expiry_alerts'  => 1,    // SSL (and domain, when on) renewal emails.
 				'domain_check'   => 0,    // Opt-in: domain names are looked up at rdap.org.
 				'menu_high'      => 0,    // Opt-in: menu just below Comments.
@@ -1250,8 +1251,17 @@ final class USMD_Admin {
 							<option value="30" <?php selected( $s['uptime'], '30' ); ?>><?php esc_html_e( 'Every 30 minutes', 'unstoppable-site-manager' ); ?></option>
 							<option value="off" <?php selected( $s['uptime'], 'off' ); ?>><?php esc_html_e( 'Off', 'unstoppable-site-manager' ); ?></option>
 						</select>
-						<p class="description"><?php esc_html_e( 'The dashboard loads each client site\'s home page, twenty at a time. A site that fails twice in a row (no answer or a server error) is marked Down. A 503 while a site is in maintenance mode counts as up. If most sites fail at once, the problem is this dashboard\'s own connection and no alerts are sent.', 'unstoppable-site-manager' ); ?></p>
+						<p class="description"><?php esc_html_e( 'The dashboard loads each client site\'s home page, a few at a time. A site that keeps failing (no answer or a server error) is marked Down. A 503 while a site is in maintenance mode counts as up. If most sites fail at once, the problem is this dashboard\'s own connection and no alerts are sent.', 'unstoppable-site-manager' ); ?></p>
 						<label><input type="checkbox" name="uptime_alerts" value="1" <?php checked( ! empty( $s['uptime_alerts'] ) ); ?>> <?php esc_html_e( 'Email me when a site goes down and when it is back up', 'unstoppable-site-manager' ); ?></label>
+						<p>
+							<label for="usmd-uptime-grace"><?php esc_html_e( 'Count a site as down after it has failed for', 'unstoppable-site-manager' ); ?></label>
+							<select id="usmd-uptime-grace" name="uptime_grace">
+								<?php foreach ( array( 5, 10, 15, 30 ) as $usmd_g ) : ?>
+									<option value="<?php echo (int) $usmd_g; ?>" <?php selected( (int) $s['uptime_grace'], $usmd_g ); ?>><?php echo esc_html( sprintf( /* translators: %d: minutes. */ __( '%d minutes', 'unstoppable-site-manager' ), $usmd_g ) ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</p>
+						<p class="description"><?php esc_html_e( 'Before counting a failure, the dashboard checks again with more time and, if the home page still doesn\'t load, asks the site\'s connector directly. A site whose WordPress answers is never reported as down.', 'unstoppable-site-manager' ); ?></p>
 						<?php $usmd_net = (int) get_option( USMD_Monitor::OPT_NET ); ?>
 						<?php if ( $usmd_net && time() - $usmd_net < DAY_IN_SECONDS ) : ?>
 							<p class="description is-bad">
@@ -1347,6 +1357,7 @@ final class USMD_Admin {
 				'digest_hour'    => isset( $_POST['digest_hour'] ) ? min( 23, absint( $_POST['digest_hour'] ) ) : 7,
 				'uptime'         => isset( $_POST['uptime'] ) && in_array( $_POST['uptime'], array( '5', '15', '30', 'off' ), true ) ? sanitize_key( $_POST['uptime'] ) : '5',
 				'uptime_alerts'  => empty( $_POST['uptime_alerts'] ) ? 0 : 1,
+				'uptime_grace'   => isset( $_POST['uptime_grace'] ) && in_array( (int) $_POST['uptime_grace'], array( 5, 10, 15, 30 ), true ) ? (int) $_POST['uptime_grace'] : 10,
 				'expiry_alerts'  => empty( $_POST['expiry_alerts'] ) ? 0 : 1,
 				'domain_check'   => empty( $_POST['domain_check'] ) ? 0 : 1,
 				'menu_high'      => empty( $_POST['menu_high'] ) ? 0 : 1,

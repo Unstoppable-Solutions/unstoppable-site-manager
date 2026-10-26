@@ -3,7 +3,7 @@
  * Plugin Name: Unstoppable Site Manager
  * Plugin URI: https://unstoppablesolutions.app/plugins/unstoppable-site-manager
  * Description: Manage all your clients' WordPress sites from your own site: updates, plugins, health, SSL, one-click sign-in and monthly client reports. Pair it with Unstoppable Site Connector on each client site. Replaces FM Dashboard.
- * Version: 0.22.0
+ * Version: 0.22.1
  * Author: Unstoppable Solutions
  * Author URI: https://unstoppablesolutions.app
  * License: GPL-2.0-or-later
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'USMD_VERSION', '0.22.0' );
+define( 'USMD_VERSION', '0.22.1' );
 // The connector's WordPress.org slug, used for install links on the Add Site screen.
 define( 'USMD_CONNECTOR_SLUG', 'unstoppable-site-connector' );
 // Where people can read about and get the connector.

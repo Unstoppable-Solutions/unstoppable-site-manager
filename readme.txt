@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.22.0
+Stable tag: 0.22.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -99,6 +99,9 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.22.1 =
+* Fewer false "site down" alerts: uptime checks go a few sites at a time with more time per site, a failed check is tried again, and a site whose WordPress still answers (only the home page is slow or blocked) is never reported as down. A site must keep failing for 10 minutes (5, 15 or 30 in Settings) before it counts as down.
 
 = 0.22.0 =
 * Client reports: a Security section that names items with known vulnerabilities (severity, and the version that fixes them) and lists "Security fixes this month" from the updates you ran. Needs Vulnerability checks on.
@@ -243,6 +246,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.22.1 =
+Fixes false "site down" emails: failed checks are confirmed before a site counts as down.
 
 = 0.22.0 =
 Security section in client reports, time on work notes, favorite plugin sets, WooCommerce shortcuts and more. Update your sites to Unstoppable Site Connector 0.10.0 to rename the connector in their plugin list.
