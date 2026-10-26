@@ -113,7 +113,10 @@ final class USMD_Toolbar {
 		}
 		?>
 		<style id="usmd-toolbar-css">
-			#wpadminbar #wp-admin-bar-usmd > .ab-item .ab-icon:before { content: "\f325"; top: 2px; }
+			#wpadminbar #wp-admin-bar-usmd > .ab-item .ab-icon:before { content: "\f325"; top: 2px; color: #4cb3ff; }
+			#wpadminbar #wp-admin-bar-usmd:hover > .ab-item .ab-icon:before,
+			#wpadminbar #wp-admin-bar-usmd.hover > .ab-item .ab-icon:before,
+			#wpadminbar #wp-admin-bar-usmd > .ab-item:focus .ab-icon:before { color: #8fd0ff; }
 			#wpadminbar .usmd-ab-count { display: inline-block; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 5px; border-radius: 9px; background: #d63638; color: #fff; font-size: 11px; line-height: 18px; text-align: center; vertical-align: 1px; box-sizing: border-box; }
 			#wpadminbar .usmd-ab-bad > .ab-item { color: #f0b849 !important; }
 			@media screen and (max-width: 782px) { #wpadminbar #wp-admin-bar-usmd { display: block; } #wpadminbar #wp-admin-bar-usmd .ab-label { display: none; } #wpadminbar #wp-admin-bar-usmd > .ab-item .ab-icon:before { top: 6px; } }
