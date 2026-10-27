@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.22.2
+Stable tag: 0.22.3
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -99,6 +99,9 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.22.3 =
+* When a site blocks the dashboard, the error names what blocked it when it can tell (Cloudflare, Wordfence, Sucuri, Imunify360, ModSecurity and other common firewalls), so you know where to allow it.
 
 = 0.22.2 =
 * A site whose firewall or security plugin blocks the dashboard (HTTP 401/403) now shows "Blocked" instead of "Offline", with what to allow. Other sync errors show "Can't sync". Only a site that cannot be reached shows "Offline".
@@ -249,6 +252,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.22.3 =
+Blocked-site errors now name the firewall that blocked the dashboard.
 
 = 0.22.2 =
 Sites blocked by a firewall show "Blocked" instead of "Offline".

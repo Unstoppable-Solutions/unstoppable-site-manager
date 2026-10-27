@@ -145,6 +145,48 @@ final class USMD_Client {
 		return '/' . $ns . '/v1/' . $route;
 	}
 
+	/**
+	 * Name what refused a request, from the block page's headers and text, so the
+	 * error says where to allow the dashboard. Empty when it can't tell.
+	 */
+	public static function blocker( $response ) {
+		$h    = static function ( $name ) use ( $response ) {
+			return strtolower( (string) wp_remote_retrieve_header( $response, $name ) );
+		};
+		$body = strtolower( substr( (string) wp_remote_retrieve_body( $response ), 0, 20000 ) );
+		$srv  = $h( 'server' );
+		if ( $h( 'cf-ray' ) || false !== strpos( $srv, 'cloudflare' ) ) {
+			return 'Cloudflare';
+		}
+		if ( $h( 'x-sucuri-id' ) || $h( 'x-sucuri-block' ) || false !== strpos( $body, 'sucuri' ) ) {
+			return 'Sucuri';
+		}
+		$known = array(
+			'wordfence'           => 'Wordfence',
+			'imunify'             => 'Imunify360 (host firewall)',
+			'mod_security'        => 'ModSecurity (host firewall)',
+			'modsecurity'         => 'ModSecurity (host firewall)',
+			'solid security'      => 'Solid Security',
+			'ithemes security'    => 'Solid Security (iThemes)',
+			'all in one wp security' => 'All In One WP Security',
+			'shield security'     => 'Shield Security',
+			'bulletproof'         => 'BulletProof Security',
+			'sg security'         => 'SiteGround security',
+			'siteground'          => 'SiteGround',
+			'godaddy'             => 'GoDaddy firewall',
+			'litespeed'           => 'LiteSpeed (host firewall)',
+		);
+		foreach ( $known as $needle => $name ) {
+			if ( false !== strpos( $body, $needle ) ) {
+				return $name;
+			}
+		}
+		if ( $h( 'x-wpe-request-id' ) || false !== strpos( $body, 'wp engine' ) ) {
+			return 'WP Engine';
+		}
+		return '';
+	}
+
 	private static function parse( $response ) {
 		if ( is_wp_error( $response ) ) {
 			return new WP_Error( 'usmd_http', 'Could not reach the site: ' . $response->get_error_message() );
@@ -160,7 +202,11 @@ final class USMD_Client {
 				return new WP_Error( 'usmd_404', 'The Unstoppable Site Connector was not found on the site (HTTP 404). Is the plugin active and the REST API reachable?' );
 			}
 			if ( in_array( $code, array( 401, 403, 406, 429 ), true ) ) {
-				return new WP_Error( 'usmd_http_' . $code, 'The site is up but blocked the dashboard (HTTP ' . $code . '). A security plugin, host firewall or Cloudflare is blocking /wp-json/uscn/v1/. Allow that path or this dashboard\'s server IP.' );
+				$who = self::blocker( $response );
+				if ( $who ) {
+					return new WP_Error( 'usmd_http_' . $code, 'The site is up but ' . $who . ' blocked the dashboard (HTTP ' . $code . '). In ' . $who . ', allow /wp-json/uscn/v1/ or this dashboard\'s server IP.' );
+				}
+				return new WP_Error( 'usmd_http_' . $code, 'The site is up but blocked the dashboard (HTTP ' . $code . '). A security plugin, host firewall or Cloudflare is blocking /wp-json/uscn/v1/. Allow that path or this dashboard\'s server IP there.' );
 			}
 			return new WP_Error( 'usmd_http_' . $code, 'The site answered with HTTP ' . $code . '. A security plugin or firewall may be blocking the REST API.' );
 		}
