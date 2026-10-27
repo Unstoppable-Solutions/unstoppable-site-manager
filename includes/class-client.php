@@ -163,6 +163,8 @@ final class USMD_Client {
 		}
 		$known = array(
 			'wordfence'           => 'Wordfence',
+			'malcare'             => 'MalCare',
+			'blogvault'           => 'MalCare/BlogVault',
 			'imunify'             => 'Imunify360 (host firewall)',
 			'mod_security'        => 'ModSecurity (host firewall)',
 			'modsecurity'         => 'ModSecurity (host firewall)',
