@@ -159,6 +159,9 @@ final class USMD_Client {
 			if ( 404 === $code ) {
 				return new WP_Error( 'usmd_404', 'The Unstoppable Site Connector was not found on the site (HTTP 404). Is the plugin active and the REST API reachable?' );
 			}
+			if ( in_array( $code, array( 401, 403, 406, 429 ), true ) ) {
+				return new WP_Error( 'usmd_http_' . $code, 'The site is up but blocked the dashboard (HTTP ' . $code . '). A security plugin, host firewall or Cloudflare is blocking /wp-json/uscn/v1/. Allow that path or this dashboard\'s server IP.' );
+			}
 			return new WP_Error( 'usmd_http_' . $code, 'The site answered with HTTP ' . $code . '. A security plugin or firewall may be blocking the REST API.' );
 		}
 		if ( ! is_array( $data ) ) {

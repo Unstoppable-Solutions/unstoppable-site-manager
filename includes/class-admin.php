@@ -146,6 +146,22 @@ final class USMD_Admin {
 		return $gmt ? human_time_diff( strtotime( $gmt . ' UTC' ) ) . ' ago' : 'never';
 	}
 
+	/**
+	 * A short card label for a sync error. Only "could not reach the site" means
+	 * offline: an HTTP 401/403 means the site is up but refused the dashboard
+	 * (usually a firewall), and anything else is a sync problem.
+	 */
+	public static function error_label( $error ) {
+		$error = (string) $error;
+		if ( preg_match( '/\bHTTP (401|403|406|429)\b/', $error ) ) {
+			return __( 'Blocked', 'unstoppable-site-manager' );
+		}
+		if ( 0 === strpos( $error, 'Could not reach the site' ) ) {
+			return __( 'Offline', 'unstoppable-site-manager' );
+		}
+		return __( "Can't sync", 'unstoppable-site-manager' );
+	}
+
 	/* ---------- routing ---------- */
 
 	public static function route() {
@@ -235,7 +251,7 @@ final class USMD_Admin {
 					<?php if ( ! $site->last_seen ) : ?>
 						<span class="usmd-pill usmd-pill-bad">No data</span>
 					<?php elseif ( $site->last_error ) : ?>
-						<span class="usmd-pill usmd-pill-bad">Offline</span>
+						<span class="usmd-pill usmd-pill-bad" title="<?php echo esc_attr( $site->last_error ); ?>"><?php echo esc_html( self::error_label( $site->last_error ) ); ?></span>
 					<?php elseif ( $site->updates ) : ?>
 						<span class="usmd-pill usmd-pill-warn" title="<?php echo esc_attr( sprintf( '%d plugin, %d theme%s', $site->plugin_updates, $site->theme_updates, $site->core_update ? ', WordPress core' : '' ) ); ?>"><?php echo (int) $site->updates; ?></span>
 					<?php else : ?>

@@ -202,7 +202,7 @@ final class USMD_Watch {
 	public static function section_titles() {
 		return array(
 			'vulns'   => __( 'Known vulnerabilities', 'unstoppable-site-manager' ),
-			'down'    => __( 'Sites not answering', 'unstoppable-site-manager' ),
+			'down'    => __( 'Sites down or not syncing', 'unstoppable-site-manager' ),
 			'ssl'     => __( 'SSL certificates expiring', 'unstoppable-site-manager' ),
 			'domain'  => __( 'Domains expiring', 'unstoppable-site-manager' ),
 			'maint'   => __( 'Still in maintenance mode', 'unstoppable-site-manager' ),
