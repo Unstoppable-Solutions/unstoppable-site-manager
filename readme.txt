@@ -105,6 +105,7 @@ This plugin connects to the following services.
 * Group by Group, Client or None (remembered for each user).
 * Select sites: tick several cards (or click them) and move them into a group in one go. Each site page has a Group box, and Groups lets you rename, recolour and delete groups.
 * Moving a dashboard brings its groups along.
+* Site page: "Update all" next to Refresh now, and an "Update to x.y" button on each plugin, theme and WordPress row and next to each vulnerability an update fixes, to update just that one.
 
 = 0.22.3 =
 * When a site blocks the dashboard, the error names what blocked it when it can tell (Cloudflare, Wordfence, Sucuri, Imunify360, ModSecurity and other common firewalls), so you know where to allow it.
@@ -260,7 +261,7 @@ This plugin connects to the following services.
 == Upgrade Notice ==
 
 = 0.23.0 =
-New: groups, with a section per group on the Sites screen and Refresh / Update per group.
+New: groups, with a section per group on the Sites screen and Refresh / Update per group. Update single plugins from the site page.
 
 = 0.22.3 =
 Blocked-site errors now name the firewall that blocked the dashboard.
