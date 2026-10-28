@@ -48,10 +48,12 @@ final class USMD_Sites {
 				client_email varchar(255) NOT NULL DEFAULT '',
 				report_auto tinyint(1) NOT NULL DEFAULT 0,
 				client_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				group_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				KEY site_uuid (site_uuid),
-				KEY client_id (client_id)
+				KEY client_id (client_id),
+				KEY group_id (group_id)
 			) {$c};"
 		);
 		dbDelta(

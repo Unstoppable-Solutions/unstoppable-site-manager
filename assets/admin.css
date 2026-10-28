@@ -155,6 +155,46 @@
 .usmd-star-icon { color: #dba617; }
 @media (hover: none) { .usmd-star { opacity: 1; } }
 
+/* groups: section headings, folding, select mode */
+.usmd-section-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
+.usmd-section-head[hidden] { display: none; }
+.usmd-section-head .usmd-grid-title { margin: 0; }
+.usmd-fold { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; margin-left: -4px; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.usmd-fold:hover { background: rgba(0, 0, 0, .05); }
+.usmd-fold:focus { outline: 2px solid #2271b1; outline-offset: 1px; }
+.usmd-fold-icon { display: inline-block; width: 12px; color: var(--usmd-muted); transition: transform .15s; }
+.usmd-grid-section.is-folded .usmd-fold-icon { transform: rotate(-90deg); }
+.usmd-grid-section.is-folded > .usmd-grid { display: none; }
+.usmd-section-actions { display: inline-flex; gap: 6px; opacity: 0; transition: opacity .15s; }
+.usmd-section-head:hover .usmd-section-actions, .usmd-section-actions:focus-within, .usmd-grid-section.is-folded .usmd-section-actions { opacity: 1; }
+@media (hover: none) { .usmd-section-actions { opacity: 1; } }
+.usmd-group-dot { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.usmd-group-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; margin: 2px 0 0 0; padding: 1px 7px; border-radius: 10px; background: #f0f0f1; color: #3c434a; font-size: 11px; font-weight: 400; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+h2 .usmd-group-tag { margin-left: 6px; font-size: 12px; }
+.usmd-groupby { display: inline-flex; align-items: center; gap: 6px; }
+.usmd-groupby span { color: var(--usmd-muted); }
+.usmd-manage-groups { align-self: center; }
+#usmd-pick-start.is-active { background: #f0f6fc; border-color: #2271b1; color: #2271b1; }
+.usmd-pick { display: none; position: absolute; top: 6px; left: 6px; z-index: 3; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 4px; background: rgba(255, 255, 255, .95); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); cursor: pointer; }
+.usmd-pick input { margin: 0; }
+.usmd-picking .usmd-pick { display: flex; }
+.usmd-picking .usmd-card { cursor: pointer; }
+.usmd-card.is-picked { outline: 3px solid #2271b1; outline-offset: -1px; }
+.usmd-pickbar { position: sticky; top: 32px; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 14px; padding: 10px 14px; background: #fff; border: 1px solid #2271b1; border-radius: 4px; box-shadow: 0 2px 6px rgba(0, 0, 0, .08); }
+.usmd-pickbar[hidden] { display: none; }
+.usmd-pickbar-move { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.usmd-pickbar input[type="text"] { width: 170px; }
+.usmd-size-list .usmd-pick { position: static; flex: none; box-shadow: none; }
+.usmd-size-list .usmd-group-tag { flex: none; margin-top: 0; }
+@media screen and (max-width: 782px) { .usmd-pickbar { top: 46px; } }
+.usmd-group-panel .usmd-inline { display: flex; gap: 6px; margin-top: 8px; }
+.usmd-group-panel .usmd-inline input { flex: 1; min-width: 0; }
+.usmd-group-panel .usmd-muted { margin: 8px 0 0; }
+.usmd-saved-note { color: var(--usmd-ok); margin: 0 0 6px; }
+.usmd-groups-table { max-width: 720px; }
+.usmd-groups-table input[type="color"] { width: 44px; height: 30px; padding: 2px; }
+.usmd-groups-table td { vertical-align: middle; }
+
 /* connector box (Add Site + empty state) */
 .usmd-connector-box { background: #fff; border: 1px solid var(--usmd-line); border-left: 4px solid #f0b849; border-radius: 4px; padding: 14px 16px; margin: 14px 0 18px; max-width: 900px; text-align: left; }
 .usmd-connector-box h2 { margin: 0 0 4px; font-size: 15px; }
@@ -653,3 +693,4 @@
 .usmd-sets select { max-width: 260px; }
 .usmd-sets #usmd-set-save { margin-left: auto; }
 .usmd-sets .description { flex-basis: 100%; margin: 2px 0 0; }
+.usmd-groups-table .usmd-link-danger, .usmd-groups-table .usmd-link-danger:hover { color: #b32d2e; }

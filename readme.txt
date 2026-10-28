@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.22.3
+Stable tag: 0.23.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -99,6 +99,12 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.23.0 =
+* Groups: sort sites into named, coloured groups ("Churches", "Hosting plan A"). The Sites screen shows Starred, then each group as its own section, then sites with no group. Fold sections away, and Refresh or Update one section on its own.
+* Group by Group, Client or None (remembered for each user).
+* Select sites: tick several cards (or click them) and move them into a group in one go. Each site page has a Group box, and Groups lets you rename, recolour and delete groups.
+* Moving a dashboard brings its groups along.
 
 = 0.22.3 =
 * When a site blocks the dashboard, the error names what blocked it when it can tell (Cloudflare, Wordfence, Sucuri, Imunify360, ModSecurity and other common firewalls), so you know where to allow it.
@@ -252,6 +258,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.23.0 =
+New: groups, with a section per group on the Sites screen and Refresh / Update per group.
 
 = 0.22.3 =
 Blocked-site errors now name the firewall that blocked the dashboard.

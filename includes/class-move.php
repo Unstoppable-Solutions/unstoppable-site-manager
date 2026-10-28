@@ -235,6 +235,7 @@ final class USMD_Move {
 				'client_email' => $s->client_email,
 				'report_auto'  => (int) $s->report_auto,
 				'starred'      => (int) $s->starred,
+				'group'        => USMD_Groups::get( $s->group_id ),
 				'created_at'   => $s->created_at,
 				'key'          => isset( $m['keys'][ $sid ] ) ? $m['keys'][ $sid ] : '',
 				'error'        => isset( $m['errors'][ $sid ] ) ? $m['errors'][ $sid ] : '',
@@ -385,6 +386,8 @@ final class USMD_Move {
 		}
 		if ( ! $site ) {
 			$cid = isset( $map[ (int) $d['client_id'] ] ) ? (int) $map[ (int) $d['client_id'] ] : 0;
+			// Its group, made here if this dashboard doesn't have one of that name yet.
+			$gid = ( isset( $d['group']['name'] ) && is_string( $d['group']['name'] ) ) ? USMD_Groups::create( $d['group']['name'], isset( $d['group']['color'] ) ? (string) $d['group']['color'] : '' ) : 0;
 			$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin's own table.
 				USMD_Sites::t(),
 				array(
@@ -394,6 +397,7 @@ final class USMD_Move {
 					'api'          => ( $k && ! is_wp_error( $k ) ) ? esc_url_raw( $k['api'] ) : '',
 					'child_pubkey' => '',
 					'client_id'    => $cid,
+					'group_id'     => $gid,
 					'client_name'  => substr( sanitize_text_field( (string) $d['client_name'] ), 0, 191 ),
 					'client_email' => implode( ', ', USMD_Sites::parse_emails( (string) $d['client_email'] ) ),
 					'report_auto'  => empty( $d['report_auto'] ) ? 0 : 1,
@@ -476,7 +480,7 @@ final class USMD_Move {
 		?>
 		<div class="usmd-move" id="usmd-move">
 			<h2 class="usmd-move-title"><?php esc_html_e( 'Move dashboard', 'unstoppable-site-manager' ); ?></h2>
-			<p class="usmd-move-lead"><?php esc_html_e( 'Move all your sites, clients, settings and report history from one Unstoppable Site Manager to another, for example from a test site to its permanent home. Sites stay connected; after the move only the new dashboard can manage them.', 'unstoppable-site-manager' ); ?></p>
+			<p class="usmd-move-lead"><?php esc_html_e( 'Move all your sites, clients, groups, settings and report history from one Unstoppable Site Manager to another, for example from a test site to its permanent home. Sites stay connected; after the move only the new dashboard can manage them.', 'unstoppable-site-manager' ); ?></p>
 			<?php if ( isset( $msgs[ $msg ] ) ) : ?>
 				<div class="notice notice-<?php echo esc_attr( $msgs[ $msg ][0] ); ?> inline"><p><?php echo esc_html( $msgs[ $msg ][1] ); ?></p></div>
 			<?php endif; ?>

@@ -167,6 +167,10 @@ final class USMD_Admin {
 	public static function route() {
 		$id = isset( $_GET['site'] ) ? absint( $_GET['site'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! $id ) {
+			if ( isset( $_GET['view'] ) && 'groups' === $_GET['view'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+				USMD_Groups::page();
+				return;
+			}
 			self::page_grid();
 			return;
 		}
@@ -204,6 +208,9 @@ final class USMD_Admin {
 		$conn_old  = USMD_Sites::connector_state( $site );
 		$clients   = USMD_Clients::names();
 		$client    = ( $site->client_id && isset( $clients[ (int) $site->client_id ] ) ) ? $clients[ (int) $site->client_id ] : '';
+		$group     = USMD_Groups::get( isset( $site->group_id ) ? $site->group_id : 0 );
+		// The group tag is only needed where the section heading doesn't already say it.
+		$show_grp  = $group && ( ! empty( $site->starred ) || 'group' !== USMD_Groups::group_by() );
 
 		ob_start();
 		?>
@@ -221,7 +228,9 @@ final class USMD_Admin {
 			data-connector="<?php echo esc_attr( $conn_old ); ?>"
 			data-vulns="<?php echo (int) $vulns; ?>"
 			data-client="<?php echo $client ? (int) $site->client_id : 0; ?>"
-			data-search="<?php echo esc_attr( strtolower( $site->name . ' ' . $site->url . ' ' . $client ) ); ?>"
+			data-group="<?php echo $group ? (int) $site->group_id : 0; ?>"
+			data-section="<?php echo esc_attr( USMD_Groups::section_of( $site ) ); ?>"
+			data-search="<?php echo esc_attr( strtolower( $site->name . ' ' . $site->url . ' ' . $client . ( $group ? ' ' . $group['name'] : '' ) ) ); ?>"
 			<?php if ( USMD_Thumbs::browser_mode() ) : ?>
 				data-thumb-src="<?php echo esc_url( USMD_Thumbs::mshots_url( $site->url ) ); ?>"
 				data-thumb-due="<?php echo $thumb_due ? 1 : 0; ?>"
@@ -231,6 +240,10 @@ final class USMD_Admin {
 				title="<?php echo ! empty( $site->starred ) ? esc_attr__( 'Unstar: remove from the top', 'unstoppable-site-manager' ) : esc_attr__( 'Star: pin to the top', 'unstoppable-site-manager' ); ?>">
 				<span aria-hidden="true">★</span><span class="screen-reader-text"><?php esc_html_e( 'Star this site', 'unstoppable-site-manager' ); ?></span>
 			</button>
+			<label class="usmd-pick">
+				<input type="checkbox" class="usmd-pick-box" value="<?php echo (int) $site->id; ?>">
+				<span class="screen-reader-text"><?php echo esc_html( sprintf( /* translators: %s: site name. */ __( 'Select %s', 'unstoppable-site-manager' ), $site->name ) ); ?></span>
+			</label>
 			<?php if ( 'off' !== USMD_Thumbs::provider() ) : ?>
 				<button type="button" class="usmd-retake<?php echo $thumb ? '' : ' is-missing'; ?>" data-site="<?php echo (int) $site->id; ?>" title="<?php esc_attr_e( 'Retake screenshot', 'unstoppable-site-manager' ); ?>">
 					<span aria-hidden="true">↻</span><span class="screen-reader-text"><?php esc_html_e( 'Retake screenshot', 'unstoppable-site-manager' ); ?></span>
@@ -261,6 +274,9 @@ final class USMD_Admin {
 				<a class="usmd-card-url" href="<?php echo esc_url( $site->url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $host ); ?></a>
 				<?php if ( $client ) : ?>
 					<span class="usmd-card-client" title="<?php esc_attr_e( 'Client', 'unstoppable-site-manager' ); ?>"><?php echo esc_html( $client ); ?></span>
+				<?php endif; ?>
+				<?php if ( $show_grp ) : ?>
+					<span class="usmd-group-tag" title="<?php esc_attr_e( 'Group', 'unstoppable-site-manager' ); ?>"><?php echo USMD_Groups::dot( $group['color'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in dot(). ?><?php echo esc_html( $group['name'] ); ?></span>
 				<?php endif; ?>
 				<?php echo USMD_Monitor::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
 				<?php echo USMD_Maintenance::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
@@ -651,6 +667,16 @@ final class USMD_Admin {
 					<label for="usmd-client-filter" class="screen-reader-text"><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?></label>
 					<?php echo USMD_Clients::select( 'client', $pick, __( 'All clients', 'unstoppable-site-manager' ), ' id="usmd-client-filter"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
 				<?php endif; ?>
+				<label class="usmd-groupby">
+					<span><?php esc_html_e( 'Group by', 'unstoppable-site-manager' ); ?></span>
+					<select id="usmd-group-by">
+						<option value="group"<?php selected( 'group', USMD_Groups::group_by() ); ?>><?php esc_html_e( 'Group', 'unstoppable-site-manager' ); ?></option>
+						<option value="client"<?php selected( 'client', USMD_Groups::group_by() ); ?>><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?></option>
+						<option value="none"<?php selected( 'none', USMD_Groups::group_by() ); ?>><?php esc_html_e( 'None', 'unstoppable-site-manager' ); ?></option>
+					</select>
+				</label>
+				<button type="button" class="button" id="usmd-pick-start" title="<?php esc_attr_e( 'Tick sites to move them into a group', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'Select sites', 'unstoppable-site-manager' ); ?></button>
+				<a class="button-link usmd-manage-groups" href="<?php echo esc_url( USMD_Groups::page_url() ); ?>"><?php esc_html_e( 'Groups', 'unstoppable-site-manager' ); ?></a>
 				<div class="usmd-filters" role="group" aria-label="Filter sites">
 					<button type="button" class="button is-active" data-filter="all">All</button>
 					<button type="button" class="button" data-filter="updates">Needs updates</button>
@@ -674,11 +700,30 @@ final class USMD_Admin {
 			<div id="usmd-progress" class="usmd-progress" hidden></div>
 
 			<?php
-			$starred = array_values( array_filter( $sites, static function ( $s ) { return ! empty( $s->starred ); } ) );
-			$others  = array_values( array_filter( $sites, static function ( $s ) { return empty( $s->starred ); } ) );
+			$starred  = array_values( array_filter( $sites, static function ( $s ) { return ! empty( $s->starred ); } ) );
+			$by       = USMD_Groups::group_by();
+			$sections = USMD_Groups::sections();
+			$buckets  = array();
+			foreach ( $sites as $s ) {
+				if ( empty( $s->starred ) ) {
+					$buckets[ USMD_Groups::section_of( $s ) ][] = $s;
+				}
+			}
 			?>
-			<section class="usmd-grid-section" id="usmd-starred-section"<?php echo $starred ? '' : ' hidden'; ?>>
-				<h2 class="usmd-grid-title"><span class="usmd-star-icon" aria-hidden="true">★</span> <?php esc_html_e( 'Starred', 'unstoppable-site-manager' ); ?> <span class="usmd-muted" data-count></span></h2>
+			<div class="usmd-pickbar" id="usmd-pickbar" hidden>
+				<strong id="usmd-pick-count">0</strong> <?php esc_html_e( 'selected', 'unstoppable-site-manager' ); ?>
+				<button type="button" class="button-link" id="usmd-pick-all"><?php esc_html_e( 'Select all shown', 'unstoppable-site-manager' ); ?></button>
+				<span class="usmd-pickbar-move">
+					<label for="usmd-pick-group"><?php esc_html_e( 'Move to group', 'unstoppable-site-manager' ); ?></label>
+					<?php echo USMD_Groups::select( 'group', 0, __( 'No group', 'unstoppable-site-manager' ), ' id="usmd-pick-group"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+					<input type="text" id="usmd-pick-new" maxlength="80" placeholder="<?php esc_attr_e( 'or new group name', 'unstoppable-site-manager' ); ?>">
+					<button type="button" class="button button-primary" id="usmd-pick-move" disabled><?php esc_html_e( 'Move', 'unstoppable-site-manager' ); ?></button>
+				</span>
+				<button type="button" class="button" id="usmd-pick-done"><?php esc_html_e( 'Done', 'unstoppable-site-manager' ); ?></button>
+			</div>
+
+			<section class="usmd-grid-section" id="usmd-starred-section" data-section="starred"<?php echo $starred ? '' : ' hidden'; ?>>
+				<?php self::section_head( 'starred', '<span class="usmd-star-icon" aria-hidden="true">★</span> ' . esc_html__( 'Starred', 'unstoppable-site-manager' ) ); ?>
 				<div class="usmd-grid usmd-size-s" id="usmd-grid-starred">
 					<?php
 					foreach ( $starred as $s ) {
@@ -687,16 +732,48 @@ final class USMD_Admin {
 					?>
 				</div>
 			</section>
-			<section class="usmd-grid-section" id="usmd-all-section">
-				<h2 class="usmd-grid-title"<?php echo $starred ? '' : ' hidden'; ?>><?php esc_html_e( 'All other sites', 'unstoppable-site-manager' ); ?> <span class="usmd-muted" data-count></span></h2>
-				<div class="usmd-grid usmd-size-s" id="usmd-grid">
+			<?php foreach ( $sections as $sec ) : ?>
+				<?php $in = isset( $buckets[ $sec['key'] ] ) ? $buckets[ $sec['key'] ] : array(); ?>
+				<section class="usmd-grid-section usmd-group-section" data-section="<?php echo esc_attr( $sec['key'] ); ?>"<?php echo 'all' === $sec['key'] ? ' id="usmd-all-section"' : ''; ?><?php echo ( $in || 'all' === $sec['key'] ) ? '' : ' hidden'; ?>>
 					<?php
-					foreach ( $others as $s ) {
-						echo self::card_html( $s ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside.
+					$title = USMD_Groups::dot( $sec['color'] ) . esc_html( $sec['title'] );
+					if ( 'all' === $sec['key'] && ! $starred ) {
+						self::section_head( 'all', $title, true );
+					} else {
+						self::section_head( $sec['key'], $title );
 					}
 					?>
-				</div>
-			</section>
+					<div class="usmd-grid usmd-size-s"<?php echo 'all' === $sec['key'] ? ' id="usmd-grid"' : ''; ?> data-grid="<?php echo esc_attr( $sec['key'] ); ?>">
+						<?php
+						foreach ( $in as $s ) {
+							echo self::card_html( $s ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside.
+						}
+						?>
+					</div>
+				</section>
+			<?php endforeach; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * A Sites-screen section heading: fold button, title, count, and Refresh /
+	 * Update for just the sites shown in it.
+	 */
+	private static function section_head( $key, $title_html, $hidden = false ) {
+		?>
+		<div class="usmd-section-head"<?php echo $hidden ? ' hidden' : ''; ?>>
+			<h2 class="usmd-grid-title">
+				<button type="button" class="usmd-fold" aria-expanded="true" data-fold="<?php echo esc_attr( $key ); ?>">
+					<span class="usmd-fold-icon" aria-hidden="true">▾</span>
+					<?php echo $title_html; // phpcs:ignore WordPress.Security.EscapeOutput -- built from escaped parts by the caller. ?>
+					<span class="usmd-muted" data-count></span>
+				</button>
+			</h2>
+			<span class="usmd-section-actions">
+				<button type="button" class="button button-small usmd-section-act" data-section-act="refresh"><?php esc_html_e( 'Refresh', 'unstoppable-site-manager' ); ?></button>
+				<button type="button" class="button button-small usmd-section-act" data-section-act="update"><?php esc_html_e( 'Update', 'unstoppable-site-manager' ); ?> <span data-section-updates></span></button>
+			</span>
 		</div>
 		<?php
 	}
@@ -920,6 +997,7 @@ final class USMD_Admin {
 
 				<aside class="usmd-side">
 					<?php self::client_panel( $site ); ?>
+					<?php USMD_Groups::site_panel( $site ); ?>
 					<?php USMD_Maintenance::panel( $site ); ?>
 					<?php echo USMD_Security::panel_html( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in panel_html(). ?>
 					<div class="usmd-panel usmd-shot-panel"

@@ -255,7 +255,7 @@
 
 	/* Runs a job over many sites one after another; one failure never stops the rest. */
 	function queue(act, ids, button) {
-		if (!ids.length) { log('Nothing to do.'); return; }
+		if (!ids.length) { log('Nothing to do.'); return Promise.resolve(); }
 		if (button) { button.disabled = true; }
 		var run = Progress.start((act === 'update' ? 'Updating ' : 'Checking ') + plural(ids.length, 'site', 'sites'), ids.length, act === 'update' ? 'Updating' : 'Checking');
 		// Several sites at once: each is its own request and the work happens on the client sites.
@@ -275,7 +275,7 @@
 		}
 		var all = [];
 		for (var i = 0; i < lanes; i++) { all.push(lane()); }
-		Promise.all(all).then(function () {
+		return Promise.all(all).then(function () {
 			run.finish();
 			if (button) { button.disabled = false; }
 		});
@@ -364,18 +364,29 @@
 		}
 	}
 
-	/* Starred section shows only when it has cards; counts reflect what is visible. */
+	/* Sections (Starred, each group or client, the rest): a section with nothing to show is hidden,
+	   and each heading counts what is shown and the updates waiting in it. */
 	function updateSections() {
 		var starredGrid = document.getElementById('usmd-grid-starred');
 		if (!starredGrid) { return; }
-		var starredSection = document.getElementById('usmd-starred-section');
-		var allSection = document.getElementById('usmd-all-section');
-		var total = starredGrid.querySelectorAll('.usmd-card').length;
-		var shown = starredGrid.querySelectorAll('.usmd-card:not([hidden])').length;
-		starredSection.hidden = total === 0;
-		allSection.querySelector('.usmd-grid-title').hidden = total === 0;
-		starredSection.querySelector('[data-count]').textContent = '(' + shown + ')';
-		allSection.querySelector('[data-count]').textContent = '(' + document.querySelectorAll('#usmd-grid .usmd-card:not([hidden])').length + ')';
+		var anyStarred = starredGrid.querySelector('.usmd-card') !== null;
+		var filtered = filter !== 'all' || (search && search.value.trim() !== '') || (clientPick && clientPick.value !== '0');
+		document.querySelectorAll('.usmd-grid-section').forEach(function (sec) {
+			var cards = sec.querySelectorAll('.usmd-card');
+			var shown = Array.prototype.filter.call(cards, function (c) { return !c.hidden; });
+			var upd = shown.reduce(function (n, c) { return n + (parseInt(c.dataset.updates, 10) || 0); }, 0);
+			var key = sec.dataset.section;
+			// "All other sites" (no grouping) keeps showing even when empty, so the screen is never blank.
+			sec.hidden = key === 'all' ? false : (cards.length === 0 || (filtered && shown.length === 0));
+			var head = sec.querySelector('.usmd-section-head');
+			if (key === 'all' && head) { head.hidden = !anyStarred; }
+			var count = sec.querySelector('[data-count]');
+			if (count) { count.textContent = '(' + shown.length + ')'; }
+			var u = sec.querySelector('[data-section-updates]');
+			if (u) { u.textContent = upd ? '(' + upd + ')' : ''; }
+			var ub = sec.querySelector('[data-section-act="update"]');
+			if (ub && !ub.dataset.busy) { ub.disabled = upd === 0; }
+		});
 	}
 	if (search) { search.addEventListener('input', applyFilter); }
 	/* Client picker: Refresh all / Update all then work on just that client's sites. */
@@ -405,7 +416,7 @@
 		b.addEventListener('click', function () { setFilter(b.dataset.filter); });
 	});
 	/* ?filter=updates / problem (links from the toolbar) opens the Sites screen filtered. */
-	if (document.getElementById('usmd-grid')) {
+	if (document.querySelector('.usmd-grid-section')) {
 		var startFilter = new URLSearchParams(window.location.search).get('filter');
 		if (startFilter && document.querySelector('[data-filter="' + startFilter.replace(/[^a-z-]/g, '') + '"]')) { setFilter(startFilter); }
 	}
@@ -638,7 +649,7 @@
 	});
 
 	/* ---------- card size (remembered in this browser) ---------- */
-	var grid = document.getElementById('usmd-grid');
+	var grid = document.querySelector('.usmd-grid-section');
 	function setSize(size) {
 		if (!grid || ['s', 'm', 'l', 'list'].indexOf(size) === -1) { return; }
 		document.querySelectorAll('.usmd-grid').forEach(function (g) {
@@ -881,7 +892,8 @@
 
 	/* ---------- star / unstar (pinned to the top) ---------- */
 	function placeCard(card) {
-		var target = document.getElementById(card.dataset.starred === '1' ? 'usmd-grid-starred' : 'usmd-grid');
+		var target = card.dataset.starred === '1' ? document.getElementById('usmd-grid-starred')
+			: document.querySelector('.usmd-grid[data-grid="' + (card.dataset.section || 'all') + '"]') || document.querySelector('.usmd-grid[data-grid]');
 		if (!target) { return; }
 		var next = Array.prototype.find.call(target.querySelectorAll('.usmd-card'), function (c) {
 			return c !== card && c.dataset.name > card.dataset.name;
@@ -909,6 +921,119 @@
 		});
 	});
 	updateSections();
+
+	/* ---------- groups: fold sections, act on one section, Group by, Select sites ---------- */
+	function foldedState() {
+		try { return JSON.parse(window.localStorage.getItem('usmdFolded') || '{}') || {}; } catch (e) { return {}; }
+	}
+	function setFold(sec, folded) {
+		sec.classList.toggle('is-folded', folded);
+		var b = sec.querySelector('.usmd-fold');
+		if (b) { b.setAttribute('aria-expanded', folded ? 'false' : 'true'); }
+	}
+	document.querySelectorAll('.usmd-grid-section').forEach(function (sec) {
+		if (foldedState()[sec.dataset.section]) { setFold(sec, true); }
+	});
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('.usmd-fold');
+		if (!b) { return; }
+		var sec = b.closest('.usmd-grid-section'), st = foldedState();
+		var folded = !sec.classList.contains('is-folded');
+		setFold(sec, folded);
+		if (folded) { st[sec.dataset.section] = 1; } else { delete st[sec.dataset.section]; }
+		try { window.localStorage.setItem('usmdFolded', JSON.stringify(st)); } catch (err) { /* private window: just not remembered */ }
+	});
+
+	/* Refresh / Update in a section heading: just the sites shown in that section (folded or not). */
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('.usmd-section-act');
+		if (!b) { return; }
+		var sec = b.closest('.usmd-grid-section'), act = b.dataset.sectionAct;
+		var title = (sec.querySelector('.usmd-fold') || sec).textContent.replace(/\s*\(\d+\)\s*$/, '').replace(/[▾★]/g, '').trim();
+		var ids = Array.prototype.filter.call(sec.querySelectorAll('.usmd-card'), function (c) {
+			return !c.hidden && (act !== 'update' || c.dataset.updates !== '0');
+		}).map(function (c) { return c.dataset.id; });
+		if (!ids.length) { log(act === 'update' ? 'Nothing to update in ' + title + '.' : 'No sites shown in ' + title + '.', 'ok'); return; }
+		if (act === 'update' && !window.confirm('Install all available updates on ' + plural(ids.length, 'site', 'sites') + ' in ' + title + '?')) { return; }
+		b.dataset.busy = '1';
+		queue(act, ids, b).then(function () { delete b.dataset.busy; updateSections(); });
+	});
+
+	/* Group by: remembered for this user, then the screen is drawn again. */
+	var groupBy = document.getElementById('usmd-group-by');
+	if (groupBy) {
+		groupBy.addEventListener('change', function () {
+			groupBy.disabled = true;
+			post('group_by', { by: groupBy.value }).then(function () { window.location.reload(); });
+		});
+	}
+
+	/* Select sites: tick cards (or click them), then move them into a group. */
+	var pickBar = document.getElementById('usmd-pickbar');
+	if (pickBar) {
+		var pickStart = document.getElementById('usmd-pick-start');
+		var pickMove = document.getElementById('usmd-pick-move');
+		var pickGroup = document.getElementById('usmd-pick-group');
+		var pickNew = document.getElementById('usmd-pick-new');
+		var picked = function () { return Array.prototype.map.call(document.querySelectorAll('.usmd-pick-box:checked'), function (b) { return b.value; }); };
+		var pickSync = function () {
+			var n = picked().length;
+			document.getElementById('usmd-pick-count').textContent = n;
+			pickMove.disabled = n === 0;
+			document.querySelectorAll('.usmd-card').forEach(function (c) {
+				var box = c.querySelector('.usmd-pick-box');
+				c.classList.toggle('is-picked', !!(box && box.checked));
+			});
+		};
+		var pickMode = function (on) {
+			document.body.classList.toggle('usmd-picking', on);
+			pickBar.hidden = !on;
+			if (pickStart) { pickStart.classList.toggle('is-active', on); }
+			if (!on) { document.querySelectorAll('.usmd-pick-box').forEach(function (b) { b.checked = false; }); }
+			pickSync();
+		};
+		if (pickStart) { pickStart.addEventListener('click', function () { pickMode(!document.body.classList.contains('usmd-picking')); }); }
+		document.getElementById('usmd-pick-done').addEventListener('click', function () { pickMode(false); });
+		document.getElementById('usmd-pick-all').addEventListener('click', function () {
+			document.querySelectorAll('.usmd-card').forEach(function (c) {
+				var box = c.querySelector('.usmd-pick-box');
+				var sec = c.closest('.usmd-grid-section');
+				if (box && !c.hidden && !(sec && (sec.hidden || sec.classList.contains('is-folded')))) { box.checked = true; }
+			});
+			pickSync();
+		});
+		document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('usmd-pick-box')) { pickSync(); } });
+		// While selecting, a click anywhere on a card ticks it instead of opening the site.
+		document.addEventListener('click', function (e) {
+			if (!document.body.classList.contains('usmd-picking')) { return; }
+			var card = e.target.closest && e.target.closest('.usmd-card');
+			if (!card || e.target.closest('.usmd-pick')) { return; }
+			e.preventDefault();
+			e.stopPropagation();
+			var box = card.querySelector('.usmd-pick-box');
+			if (box) { box.checked = !box.checked; pickSync(); }
+		}, true);
+		pickMove.addEventListener('click', function () {
+			var ids = picked();
+			if (!ids.length) { return; }
+			pickMove.disabled = true;
+			pickMove.textContent = 'Moving…';
+			post('group_move', { sites: ids.join(','), group: pickGroup.value, new_group: pickNew.value }).then(function (res) {
+				if (!res.success) {
+					log((res.data && res.data.message) || 'Could not move the sites.', 'bad');
+					pickMove.disabled = false; pickMove.textContent = 'Move';
+					return;
+				}
+				window.location.reload();
+			});
+		});
+	}
+
+	/* Buttons that ask before submitting their form (data-ask). */
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('button[data-ask]');
+		if (b && !window.confirm(b.dataset.ask)) { e.preventDefault(); }
+	});
 
 	/* ---------- Add Site: open the client's Add Plugins screen, searched for the connector ---------- */
 	var openForm = document.getElementById('usmd-connector-open');
