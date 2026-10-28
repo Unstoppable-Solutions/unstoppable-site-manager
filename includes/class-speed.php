@@ -30,7 +30,7 @@ final class USMD_Speed {
 	const KEEP      = 12;               // Past scores kept per site.
 	const DROP      = 15;               // Points lost since the last check that count as a drop.
 	// The Unstoppable Solutions relay (see tools/pagespeed-relay in the plugin's GitHub repository).
-	const RELAY     = '';
+	const RELAY     = 'https://wootest.online/wp-json/unstoppable-relay/v1/pagespeed';
 
 	public static function hooks() {
 		add_action( self::HOOK, array( __CLASS__, 'tick' ) );
