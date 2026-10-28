@@ -565,6 +565,23 @@
 	initSitePage();
 	if (document.querySelector('.usmd-site')) { refreshSitePage(); }
 
+	/* Site page: "Update to x.y" on one plugin, theme or WordPress (delegated: the page is swapped on reload). */
+	document.addEventListener('click', function (e) {
+		var btn = e.target.closest && e.target.closest('.usmd-update-one');
+		if (!btn) { return; }
+		var pageEl = btn.closest('.usmd-site');
+		if (!pageEl || btn.disabled) { return; }
+		var name = btn.dataset.name || 'this item';
+		pageEl.querySelectorAll('.usmd-update-one[data-item="' + btn.dataset.item.replace(/"/g, '\\"') + '"]').forEach(function (b) {
+			b.disabled = true; b.textContent = 'Updating…';
+		});
+		siteStatus('Updating ' + name + '…', 'busy');
+		runOne('update', pageEl.dataset.site, [btn.dataset.item]).then(function (res) {
+			var bad = !res.success || (res.data.counts && res.data.counts.failed);
+			reloadSitePage({ text: bad ? name + ': ' + summarize(res) : name + ' updated. ' + summarize(res) + '.', kind: bad ? 'bad' : 'ok' });
+		});
+	});
+
 	/* Review request: "Leave a review" opens WordPress.org in a new tab (which records it) and hides the notice;
 	   the close button counts as "Maybe later". */
 	var review = document.querySelector('.usmd-review');

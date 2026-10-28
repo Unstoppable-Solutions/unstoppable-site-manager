@@ -348,11 +348,47 @@ final class USMD_Admin {
 	}
 
 	/** Site page: known vulnerabilities in what is installed. */
+	/**
+	 * Updates waiting on a site, keyed the way vulnerability items are:
+	 * "plugin:<slug>", "theme:<slug>" or "core" => array( update item, new version ).
+	 */
+	public static function update_map( $site ) {
+		$st  = USMD_Sites::status( $site );
+		$map = array();
+		foreach ( isset( $st['plugins'] ) ? (array) $st['plugins'] : array() as $p ) {
+			if ( ! empty( $p['update'] ) && ! empty( $p['file'] ) ) {
+				$map[ 'plugin:' . USMD_Vulns::slug_from_file( $p['file'] ) ] = array( 'plugin:' . $p['file'], (string) $p['update'] );
+			}
+		}
+		foreach ( isset( $st['themes'] ) ? (array) $st['themes'] : array() as $t ) {
+			if ( ! empty( $t['update'] ) && ! empty( $t['slug'] ) ) {
+				$map[ 'theme:' . sanitize_key( $t['slug'] ) ] = array( 'theme:' . $t['slug'], (string) $t['update'] );
+			}
+		}
+		if ( ! empty( $st['core']['update'] ) ) {
+			$map['core'] = array( 'core', (string) $st['core']['update'] );
+		}
+		return $map;
+	}
+
+	/** A button that updates one plugin, theme or WordPress on this site. */
+	public static function update_button( $item, $name, $version, $class = '' ) {
+		printf(
+			'<button type="button" class="button button-small usmd-update-one %1$s" data-item="%2$s" data-name="%3$s">%4$s</button>',
+			esc_attr( $class ),
+			esc_attr( $item ),
+			esc_attr( html_entity_decode( $name, ENT_QUOTES, 'UTF-8' ) ),
+			/* translators: %s: version number. */
+			esc_html( sprintf( __( 'Update to %s', 'unstoppable-site-manager' ), $version ) )
+		);
+	}
+
 	public static function security_panel( $site ) {
 		if ( ! USMD_Vulns::enabled() ) {
 			return;
 		}
 		$r      = USMD_Vulns::for_site( $site->id );
+		$upd    = self::update_map( $site );
 		$labels = array(
 			'critical' => __( 'Critical', 'unstoppable-site-manager' ),
 			'high'     => __( 'High', 'unstoppable-site-manager' ),
@@ -379,6 +415,12 @@ final class USMD_Admin {
 							<div class="usmd-vuln-item">
 								<strong><?php echo esc_html( $it['name'] ); ?></strong>
 								<span class="usmd-muted"><?php echo esc_html( $types[ $it['type'] ] . ' ' . $it['version'] ); ?></span>
+								<?php
+								$key = 'core' === $it['type'] ? 'core' : $it['type'] . ':' . $it['slug'];
+								if ( isset( $upd[ $key ] ) ) {
+									self::update_button( $upd[ $key ][0], $it['name'], $upd[ $key ][1], 'button-primary' );
+								}
+								?>
 							</div>
 							<ul>
 								<?php foreach ( $it['vulns'] as $v ) : ?>
@@ -817,6 +859,11 @@ final class USMD_Admin {
 				</div>
 				<div class="usmd-site-actions">
 					<button type="button" class="button usmd-act" data-act="refresh" data-site="<?php echo (int) $site->id; ?>" data-reload="1">Refresh now</button>
+					<?php if ( $site->updates ) : ?>
+						<button type="button" class="button button-primary usmd-act" data-act="update" data-site="<?php echo (int) $site->id; ?>" data-reload="1" title="<?php esc_attr_e( 'Install every waiting plugin, theme and WordPress update on this site', 'unstoppable-site-manager' ); ?>">
+							<?php /* translators: %d: number of updates. */ echo esc_html( sprintf( __( 'Update all (%d)', 'unstoppable-site-manager' ), (int) $site->updates ) ); ?>
+						</button>
+					<?php endif; ?>
 					<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-plugins&view=add&site=' . (int) $site->id ) ); ?>" title="<?php esc_attr_e( 'Install plugins on this site from WordPress.org, a ZIP file or a web address', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'Install plugins', 'unstoppable-site-manager' ); ?></a>
 					<a class="button" href="<?php echo esc_url( self::site_url( $site->id, array( 'view' => 'report' ) ) ); ?>">Client report</a>
 					<a class="button usmd-login" data-site="<?php echo (int) $site->id; ?>" href="<?php echo esc_url( trailingslashit( $site->url ) . 'wp-admin/' ); ?>" target="_blank" rel="noopener" title="<?php esc_attr_e( 'Open WP Admin in a new tab, already signed in', 'unstoppable-site-manager' ); ?>"><?php esc_html_e( 'WP Admin', 'unstoppable-site-manager' ); ?> ↗</a>
@@ -858,7 +905,16 @@ final class USMD_Admin {
 									<th class="check-column"><?php if ( ! empty( $core['update'] ) ) : ?><input type="checkbox" class="usmd-item" value="core"><?php endif; ?></th>
 									<td>WordPress</td>
 									<td><?php echo esc_html( isset( $core['version'] ) ? $core['version'] : '?' ); ?></td>
-									<td><?php echo ! empty( $core['update'] ) ? '<span class="usmd-pill usmd-pill-warn">' . esc_html( $core['update'] ) . '</span>' : '—'; ?></td>
+									<td>
+										<?php
+										if ( ! empty( $core['update'] ) ) {
+											echo '<span class="usmd-pill usmd-pill-warn">' . esc_html( $core['update'] ) . '</span> ';
+											self::update_button( 'core', 'WordPress', $core['update'] );
+										} else {
+											echo '—';
+										}
+										?>
+									</td>
 								</tr>
 							</tbody>
 						</table>
@@ -888,7 +944,16 @@ final class USMD_Admin {
 										<?php endif; ?>
 									</td>
 									<td><?php echo esc_html( $p['version'] ); ?></td>
-									<td><?php echo ! empty( $p['update'] ) ? '<span class="usmd-pill usmd-pill-warn">' . esc_html( $p['update'] ) . '</span>' : '—'; ?></td>
+									<td>
+										<?php
+										if ( ! empty( $p['update'] ) ) {
+											echo '<span class="usmd-pill usmd-pill-warn">' . esc_html( $p['update'] ) . '</span> ';
+											self::update_button( 'plugin:' . $p['file'], $p['name'], $p['update'] );
+										} else {
+											echo '—';
+										}
+										?>
+									</td>
 									<td><?php echo ! empty( $p['active'] ) ? 'Active' : '<span class="usmd-muted">Inactive</span>'; ?><?php echo ! empty( $p['auto_update'] ) ? ' · auto' : ''; ?></td>
 								</tr>
 							<?php endforeach; ?>
@@ -904,7 +969,16 @@ final class USMD_Admin {
 									<th class="check-column"><?php if ( ! empty( $t['update'] ) ) : ?><input type="checkbox" class="usmd-item" value="<?php echo esc_attr( 'theme:' . $t['slug'] ); ?>"><?php endif; ?></th>
 									<td><strong><?php echo esc_html( $t['name'] ); ?></strong></td>
 									<td><?php echo esc_html( $t['version'] ); ?></td>
-									<td><?php echo ! empty( $t['update'] ) ? '<span class="usmd-pill usmd-pill-warn">' . esc_html( $t['update'] ) . '</span>' : '—'; ?></td>
+									<td>
+										<?php
+										if ( ! empty( $t['update'] ) ) {
+											echo '<span class="usmd-pill usmd-pill-warn">' . esc_html( $t['update'] ) . '</span> ';
+											self::update_button( 'theme:' . $t['slug'], $t['name'], $t['update'] );
+										} else {
+											echo '—';
+										}
+										?>
+									</td>
 									<td><?php echo ! empty( $t['active'] ) ? 'Active' : ( ! empty( $t['parent'] ) ? 'Parent theme' : '<span class="usmd-muted">Inactive</span>' ); ?></td>
 								</tr>
 							<?php endforeach; ?>
