@@ -694,3 +694,22 @@ h2 .usmd-group-tag { margin-left: 6px; font-size: 12px; }
 .usmd-sets #usmd-set-save { margin-left: auto; }
 .usmd-sets .description { flex-basis: 100%; margin: 2px 0 0; }
 .usmd-groups-table .usmd-link-danger, .usmd-groups-table .usmd-link-danger:hover { color: #b32d2e; }
+
+/* page speed */
+.usmd-card-meta .usmd-speed { font-weight: 600; }
+.usmd-speed.is-good { color: #008a20; }
+.usmd-speed.is-ok { color: #b26200; }
+.usmd-speed.is-bad { color: #d63638; }
+.usmd-speed-score { display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; }
+.usmd-speed-num { display: inline-flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 50%; border: 4px solid currentColor; font-size: 20px; font-weight: 700; }
+.usmd-speed-score.is-good { color: #008a20; }
+.usmd-speed-score.is-ok { color: #b26200; }
+.usmd-speed-score.is-bad { color: #d63638; }
+.usmd-speed-of { color: #1d2327; font-weight: 600; line-height: 1.4; }
+.usmd-speed-of .usmd-muted { font-weight: 400; }
+.usmd-speed-metrics { margin-bottom: 8px; }
+.usmd-speed-history { margin: 0 0 6px; }
+.usmd-speed-error { color: #d63638; margin: 6px 0; }
+.usmd-speed-actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 0; }
+.usmd-steps { margin: 6px 0 0 18px; }
+.usmd-steps li { margin-bottom: 2px; }

@@ -123,6 +123,7 @@ final class USMD_Watch {
 			'ssl'     => array(),
 			'domain'  => array(),
 			'maint'   => array(),
+			'speed'   => array(),
 			'updates' => array(),
 		);
 		$seen_domains = array();
@@ -180,6 +181,13 @@ final class USMD_Watch {
 				/* translators: 1: template name, 2: time ago. */
 				$out['maint'][] = array( $site, sprintf( __( '%1$s page on since %2$s', 'unstoppable-site-manager' ), USMD_Maintenance::label( $m['template'] ), human_time_diff( $m['since'] ) . ' ago' ) );
 			}
+			if ( USMD_Speed::enabled() ) {
+				$sr = USMD_Speed::get( $site->id );
+				if ( USMD_Speed::dropped( $sr ) ) {
+					/* translators: 1: earlier score, 2: new score. */
+					$out['speed'][] = array( $site, sprintf( __( 'Page speed score fell from %1$d to %2$d (mobile)', 'unstoppable-site-manager' ), (int) $sr['prev'], (int) $sr['score'] ) );
+				}
+			}
 			if ( $site->updates && ! $site->last_error ) {
 				$parts = array();
 				if ( $site->plugin_updates ) {
@@ -206,6 +214,7 @@ final class USMD_Watch {
 			'ssl'     => __( 'SSL certificates expiring', 'unstoppable-site-manager' ),
 			'domain'  => __( 'Domains expiring', 'unstoppable-site-manager' ),
 			'maint'   => __( 'Still in maintenance mode', 'unstoppable-site-manager' ),
+			'speed'   => __( 'Page speed dropped', 'unstoppable-site-manager' ),
 			'updates' => __( 'Updates waiting', 'unstoppable-site-manager' ),
 		);
 	}

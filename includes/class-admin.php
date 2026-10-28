@@ -125,6 +125,8 @@ final class USMD_Admin {
 				'domain_check'   => 0,    // Opt-in: domain names are looked up at rdap.org.
 				'menu_high'      => 0,    // Opt-in: menu just below Comments.
 				'admin_bar'      => 1,    // "Site Manager" in the top toolbar.
+				'speed_check'    => 0,    // Opt-in: home page addresses go to Google PageSpeed Insights.
+				'speed_key'      => '',   // Google API key for PageSpeed Insights.
 			)
 		);
 	}
@@ -294,6 +296,7 @@ final class USMD_Admin {
 						}
 						?>
 					</li>
+					<?php echo USMD_Speed::card_item( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in card_item(). ?>
 					<li class="<?php echo $stale ? 'is-bad' : ''; ?>" title="Last report from the site"><?php echo esc_html( self::ago( $site->last_seen ) ); ?></li>
 				</ul>
 				<?php if ( $site->last_error ) : ?>
@@ -1097,6 +1100,7 @@ final class USMD_Admin {
 						</div>
 						<p class="usmd-shot-error"<?php echo $site->thumb_error ? '' : ' hidden'; ?>><?php echo esc_html( $site->thumb_error ? 'Last attempt failed: ' . $site->thumb_error : '' ); ?></p>
 					</div>
+					<?php USMD_Speed::panel( $site ); ?>
 					<div class="usmd-panel">
 						<h2>Health</h2>
 						<dl class="usmd-dl">
@@ -1449,6 +1453,25 @@ final class USMD_Admin {
 						<p class="description"><strong><?php esc_html_e( 'Off unless you turn it on.', 'unstoppable-site-manager' ); ?></strong> <?php esc_html_e( 'Once a week (daily in the last 30 days), each domain name is looked up in public registry data (RDAP) through rdap.org, which passes the request to the domain\'s registry. Only the domain name is sent. Emails at 30, 14, 7 and 1 days. Some country domains have no RDAP service; those show "not available".', 'unstoppable-site-manager' ); ?></p>
 					</td></tr>
 				</table>
+				<h2 id="usmd-speed-settings"><?php esc_html_e( 'Page speed', 'unstoppable-site-manager' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Weekly speed check', 'unstoppable-site-manager' ); ?></th><td>
+						<label><input type="checkbox" name="speed_check" value="1" <?php checked( ! empty( $s['speed_check'] ) ); ?>> <?php esc_html_e( 'Check each site\'s home page speed with Google PageSpeed Insights once a week', 'unstoppable-site-manager' ); ?></label>
+						<p class="description"><strong><?php esc_html_e( 'Off unless you turn it on.', 'unstoppable-site-manager' ); ?></strong> <?php esc_html_e( 'Each client site\'s home page address (nothing else) is sent to Google, which loads the page as a phone would and returns a score from 0 to 100. The score shows on each site, in client reports, and in the daily email when it drops. A few sites are checked each hour, so every site is checked about once a week.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
+					<tr><th><label for="usmd-speed-key"><?php esc_html_e( 'Google API key', 'unstoppable-site-manager' ); ?></label></th><td>
+						<input id="usmd-speed-key" name="speed_key" class="regular-text code" value="<?php echo esc_attr( $s['speed_key'] ); ?>" autocomplete="off" spellcheck="false">
+						<p class="description"><?php esc_html_e( 'Required: Google refuses checks without a key. It is free (25,000 checks a day) and takes about two minutes:', 'unstoppable-site-manager' ); ?></p>
+						<ol class="description usmd-steps">
+							<li><?php esc_html_e( 'Open the Google Cloud console and sign in with a Google account.', 'unstoppable-site-manager' ); ?> <a href="https://console.cloud.google.com/apis/library/pagespeedonline.googleapis.com" target="_blank" rel="noopener"><?php esc_html_e( 'PageSpeed Insights API ↗', 'unstoppable-site-manager' ); ?></a></li>
+							<li><?php esc_html_e( 'Create a project if asked, then click Enable.', 'unstoppable-site-manager' ); ?></li>
+							<li><?php esc_html_e( 'Go to APIs & Services > Credentials > Create credentials > API key, and paste the key here.', 'unstoppable-site-manager' ); ?></li>
+						</ol>
+						<?php if ( ! empty( $s['speed_check'] ) && '' === trim( (string) $s['speed_key'] ) ) : ?>
+							<p class="description is-bad"><?php esc_html_e( 'Speed checks are on but will not run until you add a key.', 'unstoppable-site-manager' ); ?></p>
+						<?php endif; ?>
+					</td></tr>
+				</table>
 				<h2>Screenshots</h2>
 				<table class="form-table" role="presentation">
 					<tr><th>Screenshot service</th><td>
@@ -1530,6 +1553,8 @@ final class USMD_Admin {
 				'domain_check'   => empty( $_POST['domain_check'] ) ? 0 : 1,
 				'menu_high'      => empty( $_POST['menu_high'] ) ? 0 : 1,
 				'admin_bar'      => empty( $_POST['admin_bar'] ) ? 0 : 1,
+				'speed_check'    => empty( $_POST['speed_check'] ) ? 0 : 1,
+				'speed_key'      => isset( $_POST['speed_key'] ) ? substr( preg_replace( '/[^A-Za-z0-9_\-]/', '', sanitize_text_field( wp_unslash( $_POST['speed_key'] ) ) ), 0, 100 ) : '',
 			)
 		);
 		// esc_url_raw would mangle the {url} placeholder, so it's swapped out and back.

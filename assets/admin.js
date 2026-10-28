@@ -1046,6 +1046,24 @@
 		});
 	}
 
+	/* Site page: Page speed "Check now" (Google takes up to a minute). */
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('.usmd-speed-check');
+		if (!b) { return; }
+		var panel = b.closest('.usmd-speed-panel');
+		b.disabled = true;
+		b.textContent = 'Checking… (up to a minute)';
+		post('speed_check', { site: panel.dataset.site }).then(function (res) {
+			if (res.success && res.data.panel) {
+				var t = document.createElement('div'); t.innerHTML = res.data.panel.trim();
+				if (t.firstElementChild) { panel.replaceWith(t.firstElementChild); }
+				return;
+			}
+			b.disabled = false; b.textContent = 'Check now';
+			window.alert((res.data && res.data.message) || 'Could not check the page speed.');
+		});
+	});
+
 	/* Buttons that ask before submitting their form (data-ask). */
 	document.addEventListener('click', function (e) {
 		var b = e.target.closest && e.target.closest('button[data-ask]');

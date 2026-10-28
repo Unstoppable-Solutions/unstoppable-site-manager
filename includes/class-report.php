@@ -373,6 +373,11 @@ final class USMD_Report {
 			}
 		}
 
+		$speed = USMD_Speed::report_item( $site );
+		if ( $speed ) {
+			$items[] = $speed;
+		}
+
 		$pending = (int) $site->updates;
 		$items[] = $pending
 			? array( __( 'Updates waiting', 'unstoppable-site-manager' ), sprintf( /* translators: %d: number of updates. */ _n( '%d update waiting', '%d updates waiting', $pending, 'unstoppable-site-manager' ), $pending ), 'warn' )
