@@ -50,3 +50,6 @@ wp-cli.local.yml
 CHANGELOG.md
 LICENSE
 LICENSE.txt
+
+# Server-side tools (installed on Unstoppable Solutions servers, not in the plugin)
+tools

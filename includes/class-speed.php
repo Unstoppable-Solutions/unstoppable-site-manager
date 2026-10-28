@@ -2,11 +2,14 @@
 /**
  * Page speed: a weekly Google PageSpeed Insights check of each site's home page.
  *
- * Off until you turn it on and add a free Google API key in Settings (Google
- * refuses requests without a key once its shared allowance runs out). When on,
- * the dashboard sends each client site's home page address, and nothing else,
- * to Google's PageSpeed Insights API, which loads the page the way a phone
- * visitor would and returns a performance score from 0 to 100 and timings.
+ * Off until you turn it on in Settings. When on, each client site's home page
+ * address (nothing else) goes to Google PageSpeed Insights, which loads the page
+ * the way a phone visitor would and returns a score from 0 to 100 and timings.
+ *
+ * No key is needed: requests go through the Unstoppable Solutions relay, which
+ * adds its own Google key (Google refuses keyless requests) and returns only the
+ * score and timings. With your own free Google API key in Settings, the
+ * dashboard asks Google directly instead.
  *
  * Each site is checked about once a week, a few sites an hour, so a dashboard
  * with hundreds of sites spreads the work out. The score shows on the site's
@@ -26,6 +29,8 @@ final class USMD_Speed {
 	const TIMEOUT   = 90;               // Google takes 10 to 40 seconds a page.
 	const KEEP      = 12;               // Past scores kept per site.
 	const DROP      = 15;               // Points lost since the last check that count as a drop.
+	// The Unstoppable Solutions relay (see tools/pagespeed-relay in the plugin's GitHub repository).
+	const RELAY     = '';
 
 	public static function hooks() {
 		add_action( self::HOOK, array( __CLASS__, 'tick' ) );
@@ -39,9 +44,34 @@ final class USMD_Speed {
 		return trim( (string) USMD_Admin::settings()['speed_key'] );
 	}
 
-	/** On, with a key. */
+	/** The relay's address, or '' when there is none. */
+	public static function relay() {
+		return (string) apply_filters( 'usmd_speed_relay', self::RELAY );
+	}
+
+	/** Checks go through the relay (no key of your own). */
+	public static function uses_relay() {
+		return '' === self::key() && '' !== self::relay();
+	}
+
+	/** Checks can run: a key of your own, or the relay. */
+	public static function can_check() {
+		return '' !== self::key() || '' !== self::relay();
+	}
+
+	/** On, and able to check. */
 	public static function enabled() {
-		return ! empty( USMD_Admin::settings()['speed_check'] ) && '' !== self::key();
+		return ! empty( USMD_Admin::settings()['speed_check'] ) && self::can_check();
+	}
+
+	/** An anonymous id for this dashboard, so the relay can give each dashboard a fair daily share. */
+	public static function dashboard_id() {
+		return substr( hash( 'sha256', home_url( '/' ) . wp_salt( 'auth' ) ), 0, 32 );
+	}
+
+	/** Request headers: the relay needs to know which dashboard is asking. */
+	private static function headers() {
+		return self::uses_relay() ? array( 'X-USMD-Dashboard' => self::dashboard_id() ) : array();
 	}
 
 	/** Hourly while on; nothing scheduled while off. */
@@ -119,6 +149,9 @@ final class USMD_Speed {
 	/* ---------- checking ---------- */
 
 	private static function request_url( $url ) {
+		if ( self::uses_relay() ) {
+			return add_query_arg( 'url', rawurlencode( $url ), self::relay() );
+		}
 		return add_query_arg(
 			array(
 				'url'      => rawurlencode( $url ),
@@ -140,8 +173,14 @@ final class USMD_Speed {
 		$d = json_decode( (string) $body, true );
 		if ( 200 !== (int) $code || ! is_array( $d ) ) {
 			$msg = is_array( $d ) && isset( $d['error']['message'] ) ? (string) $d['error']['message'] : '';
+			if ( 429 === (int) $code && 'relay_limit' === $msg ) {
+				return array( 'error' => __( 'The free speed service has used today\'s share for this dashboard. Checks continue tomorrow, or add your own free Google API key in Settings > Page speed.', 'unstoppable-site-manager' ) );
+			}
 			if ( 429 === (int) $code ) {
 				return array( 'error' => __( 'Google\'s daily allowance for this API key is used up. Checks continue tomorrow.', 'unstoppable-site-manager' ) );
+			}
+			if ( 503 === (int) $code && $msg ) {
+				return array( 'error' => wp_strip_all_tags( substr( $msg, 0, 200 ) ) );
 			}
 			if ( 400 === (int) $code && false !== stripos( $msg, 'API key' ) ) {
 				return array( 'error' => __( 'Google did not accept the API key. Check it in Settings > Page speed.', 'unstoppable-site-manager' ) );
@@ -151,6 +190,9 @@ final class USMD_Speed {
 			}
 			if ( false !== stripos( $msg, 'FAILED_DOCUMENT_REQUEST' ) || false !== stripos( $msg, 'ERRORED_DOCUMENT_REQUEST' ) ) {
 				return array( 'error' => __( 'Google could not load the home page (the site was down, blocked Google, or redirected too many times).', 'unstoppable-site-manager' ) );
+			}
+			if ( self::uses_relay() && $msg ) {
+				return array( 'error' => wp_strip_all_tags( substr( $msg, 0, 200 ) ) );
 			}
 			/* translators: 1: HTTP status, 2: Google's message. */
 			return array( 'error' => trim( sprintf( __( 'Google answered with HTTP %1$d. %2$s', 'unstoppable-site-manager' ), (int) $code, wp_strip_all_tags( substr( $msg, 0, 200 ) ) ) ) );
@@ -201,7 +243,7 @@ final class USMD_Speed {
 
 	/** Check one site now (Check now on the site page). */
 	public static function check( $site ) {
-		$res = wp_remote_get( self::request_url( $site->url ), array( 'timeout' => self::TIMEOUT ) );
+		$res = wp_remote_get( self::request_url( $site->url ), array( 'timeout' => self::TIMEOUT, 'headers' => self::headers() ) );
 		if ( is_wp_error( $res ) ) {
 			/* translators: %s: error message. */
 			return self::record( $site->id, array( 'error' => sprintf( __( 'Could not reach Google: %s', 'unstoppable-site-manager' ), $res->get_error_message() ) ) );
@@ -239,7 +281,7 @@ final class USMD_Speed {
 					$reqs[ $id ] = array(
 						'url'     => self::request_url( $site->url ),
 						'type'    => 'GET',
-						'headers' => array(),
+						'headers' => self::headers(),
 						'data'    => array(),
 						'options' => array( 'timeout' => self::TIMEOUT, 'connect_timeout' => 15 ),
 					);
@@ -269,7 +311,7 @@ final class USMD_Speed {
 		if ( ! $site ) {
 			wp_send_json_error( array( 'message' => __( 'Site not found.', 'unstoppable-site-manager' ) ) );
 		}
-		if ( '' === self::key() ) {
+		if ( ! self::can_check() ) {
 			wp_send_json_error( array( 'message' => __( 'Add a Google API key in Settings > Page speed first.', 'unstoppable-site-manager' ) ) );
 		}
 		$r = self::check( $site );
@@ -304,7 +346,7 @@ final class USMD_Speed {
 		?>
 		<div class="usmd-panel usmd-speed-panel" id="usmd-speed" data-site="<?php echo (int) $site->id; ?>">
 			<h2><?php esc_html_e( 'Page speed', 'unstoppable-site-manager' ); ?> <span class="usmd-muted"><?php esc_html_e( '(mobile)', 'unstoppable-site-manager' ); ?></span></h2>
-			<?php if ( '' === self::key() ) : ?>
+			<?php if ( ! self::can_check() ) : ?>
 				<p class="usmd-muted"><?php esc_html_e( 'Needs a free Google API key.', 'unstoppable-site-manager' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-settings#usmd-speed-settings' ) ); ?>"><?php esc_html_e( 'Add it in Settings', 'unstoppable-site-manager' ); ?></a></p>
 			<?php elseif ( ! $r ) : ?>
 				<p class="usmd-muted"><?php esc_html_e( 'Not checked yet. Each site is checked about once a week.', 'unstoppable-site-manager' ); ?></p>
@@ -353,7 +395,7 @@ final class USMD_Speed {
 				</p>
 			<?php endif; ?>
 			<p class="usmd-speed-actions">
-				<?php if ( '' !== self::key() ) : ?>
+				<?php if ( self::can_check() ) : ?>
 					<button type="button" class="button button-small usmd-speed-check"><?php esc_html_e( 'Check now', 'unstoppable-site-manager' ); ?></button>
 				<?php endif; ?>
 				<a class="button button-small" href="<?php echo esc_url( self::report_url( $site->url ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Full report ↗', 'unstoppable-site-manager' ); ?></a>

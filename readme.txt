@@ -86,7 +86,9 @@ This plugin connects to the following services.
 
 **RDAP domain lookups via rdap.org** (optional, off until you turn on Domain expiry in Settings). To warn you before a client's domain registration runs out, each domain name (only the name, for example example.com) is sent to `https://rdap.org/`, which forwards the request to that domain's registry; the registry returns the public registration record. Once a week per domain, daily in the last 30 days. [rdap.org](https://about.rdap.org/), operated by Gavin Brown under the [ICANN RDAP framework](https://www.icann.org/rdap).
 
-**Google PageSpeed Insights API** (optional, off until you turn on Page speed in Settings and add your own Google API key). To measure how fast each client site loads, the public address of its home page (only the address) and your API key are sent to `https://www.googleapis.com/pagespeedonline/v5/runPagespeed`. Google loads that page as a phone would and returns a performance score and timings. About once a week per site, and when you click Check now. Provided by Google: [Terms of Service](https://developers.google.com/terms), [Privacy Policy](https://policies.google.com/privacy).
+**Unstoppable Solutions PageSpeed relay** (optional, off until you turn on Page speed in Settings; not used if you add your own Google API key). To get a page speed score without a Google key of your own, the public address of each client site's home page and an anonymous id for your dashboard (a one-way hash, so each dashboard gets a fair daily share) are sent to the relay at `{{RELAY}}`, run by Unstoppable Solutions. The relay asks Google PageSpeed Insights (below) with its own key and returns only the score and five timings; it keeps a count of checks per dashboard and the last answer for each address for up to an hour, nothing else. About once a week per site, and when you click Check now. [Unstoppable Solutions](https://unstoppablesolutions.app), [Privacy Policy](https://unstoppablesolutions.app/privacy).
+
+**Google PageSpeed Insights API** (optional, off until you turn on Page speed in Settings). Each client site's home page address (only the address) is sent to `https://www.googleapis.com/pagespeedonline/v5/runPagespeed`, directly with your own API key if you add one, otherwise through the relay above. Google loads that page as a phone would and returns a performance score and timings. About once a week per site, and when you click Check now. Provided by Google: [Terms of Service](https://developers.google.com/terms), [Privacy Policy](https://policies.google.com/privacy).
 
 **WordPress.com mShots** (optional screenshot service, off by default; turn it on under Settings > Screenshots). Only when you turn it on, the public address of each client site is sent to `https://s0.wp.com/mshots/v1/` to show a thumbnail of its home page (when a site is added and weekly). Provided by Automattic: [Terms of Service](https://wordpress.com/tos/), [Privacy Policy](https://automattic.com/privacy/).
 
@@ -103,7 +105,7 @@ This plugin connects to the following services.
 == Changelog ==
 
 = 0.24.0 =
-* Page speed (off until you turn it on, needs a free Google API key): each site's home page is checked with Google PageSpeed Insights about once a week. The mobile score (0 to 100) shows on the site's card and page with its main timings, a Check now button and a link to Google's full report. Client reports include it, and the daily email says when a score drops.
+* Page speed (off until you turn it on, no key needed): each site's home page is checked with Google PageSpeed Insights about once a week. The mobile score (0 to 100) shows on the site's card and page with its main timings, a Check now button and a link to Google's full report. Client reports include it, and the daily email says when a score drops. Checks go through the free Unstoppable Solutions relay, or straight to Google with your own free API key.
 
 = 0.23.0 =
 * Groups: sort sites into named, coloured groups ("Churches", "Hosting plan A"). The Sites screen shows Starred, then each group as its own section, then sites with no group. Fold sections away, and Refresh or Update one section on its own.
@@ -140,7 +142,7 @@ This plugin connects to the following services.
 * Uptime on the site page (response time, last 30 days) and an Uptime line in client reports.
 * SSL expiry alerts: once a day the dashboard reads each site's certificate as a visitor would, and emails you at 14, 7, 3 and 1 days and if it expires.
 * Domain expiry alerts (off until you turn them on): registration expiry dates from public RDAP data, emails at 30, 14, 7 and 1 days.
-* Page speed (off until you turn it on): a weekly Google PageSpeed Insights score for each site's home page, on the card and site page, in client reports, and in the daily email when it drops. Needs a free Google API key.
+* Page speed (off until you turn it on): a weekly Google PageSpeed Insights score for each site's home page, on the card and site page, in client reports, and in the daily email when it drops. No key needed, or use your own free Google API key.
 * The daily email now includes sites that are down and domains expiring within 30 days.
 
 = 0.19.0 =

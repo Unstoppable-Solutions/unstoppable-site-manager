@@ -1457,17 +1457,18 @@ final class USMD_Admin {
 				<table class="form-table" role="presentation">
 					<tr><th><?php esc_html_e( 'Weekly speed check', 'unstoppable-site-manager' ); ?></th><td>
 						<label><input type="checkbox" name="speed_check" value="1" <?php checked( ! empty( $s['speed_check'] ) ); ?>> <?php esc_html_e( 'Check each site\'s home page speed with Google PageSpeed Insights once a week', 'unstoppable-site-manager' ); ?></label>
-						<p class="description"><strong><?php esc_html_e( 'Off unless you turn it on.', 'unstoppable-site-manager' ); ?></strong> <?php esc_html_e( 'Each client site\'s home page address (nothing else) is sent to Google, which loads the page as a phone would and returns a score from 0 to 100. The score shows on each site, in client reports, and in the daily email when it drops. A few sites are checked each hour, so every site is checked about once a week.', 'unstoppable-site-manager' ); ?></p>
+						<p class="description"><strong><?php esc_html_e( 'Off unless you turn it on.', 'unstoppable-site-manager' ); ?></strong> <?php esc_html_e( 'Each client site\'s home page address (nothing else) is sent to Google PageSpeed Insights, which loads the page as a phone would and returns a score from 0 to 100. The score shows on each site, in client reports, and in the daily email when it drops. A few sites are checked each hour, so every site is checked about once a week.', 'unstoppable-site-manager' ); ?></p>
+						<p class="description"><?php esc_html_e( 'No key needed: without a key of your own, checks go through the free Unstoppable Solutions relay, which asks Google with its key and passes back only the score and timings. Each dashboard gets a fair daily share.', 'unstoppable-site-manager' ); ?></p>
 					</td></tr>
-					<tr><th><label for="usmd-speed-key"><?php esc_html_e( 'Google API key', 'unstoppable-site-manager' ); ?></label></th><td>
+					<tr><th><label for="usmd-speed-key"><?php esc_html_e( 'Your own Google API key', 'unstoppable-site-manager' ); ?></label></th><td>
 						<input id="usmd-speed-key" name="speed_key" class="regular-text code" value="<?php echo esc_attr( $s['speed_key'] ); ?>" autocomplete="off" spellcheck="false">
-						<p class="description"><?php esc_html_e( 'Required: Google refuses checks without a key. It is free (25,000 checks a day) and takes about two minutes:', 'unstoppable-site-manager' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Optional. With your own key the dashboard asks Google directly, with no relay in between and your own allowance of 25,000 checks a day. It is free and takes about two minutes:', 'unstoppable-site-manager' ); ?></p>
 						<ol class="description usmd-steps">
 							<li><?php esc_html_e( 'Open the Google Cloud console and sign in with a Google account.', 'unstoppable-site-manager' ); ?> <a href="https://console.cloud.google.com/apis/library/pagespeedonline.googleapis.com" target="_blank" rel="noopener"><?php esc_html_e( 'PageSpeed Insights API ↗', 'unstoppable-site-manager' ); ?></a></li>
 							<li><?php esc_html_e( 'Create a project if asked, then click Enable.', 'unstoppable-site-manager' ); ?></li>
 							<li><?php esc_html_e( 'Go to APIs & Services > Credentials > Create credentials > API key, and paste the key here.', 'unstoppable-site-manager' ); ?></li>
 						</ol>
-						<?php if ( ! empty( $s['speed_check'] ) && '' === trim( (string) $s['speed_key'] ) ) : ?>
+						<?php if ( ! empty( $s['speed_check'] ) && ! USMD_Speed::can_check() ) : ?>
 							<p class="description is-bad"><?php esc_html_e( 'Speed checks are on but will not run until you add a key.', 'unstoppable-site-manager' ); ?></p>
 						<?php endif; ?>
 					</td></tr>
