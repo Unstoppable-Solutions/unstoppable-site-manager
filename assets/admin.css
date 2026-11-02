@@ -713,3 +713,9 @@ h2 .usmd-group-tag { margin-left: 6px; font-size: 12px; }
 .usmd-speed-actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 0; }
 .usmd-steps { margin: 6px 0 0 18px; }
 .usmd-steps li { margin-bottom: 2px; }
+
+/* report sending problems */
+.usmd-report-failed { color: #b32d2e; margin: 6px 0 0; }
+.usmd-reports-table .usmd-report-failed { display: inline-block; max-width: 280px; margin: 0; font-size: 12px; }
+.usmd-reports-overdue form { margin: 0; }
+.usmd-reports-overdue p:last-child { display: flex; gap: 6px; align-items: center; }

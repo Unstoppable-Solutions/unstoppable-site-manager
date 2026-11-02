@@ -21,10 +21,16 @@ final class USMD_Report_Mail {
 	const PER_TICK = 50; // At most this many emails per run…
 	const BUDGET   = 20; // …and stop after this many seconds, so a slow mail server never times out.
 	const KEEP     = 13; // Months of sent-log kept per site.
+	const RUN      = 'usmd_report_run';  // What the last automatic run did (shown in Settings).
+	const TRYING   = 'usmd_report_try';  // site id => time a send started, to spot one that never finished.
+	const GRACE    = 2 * HOUR_IN_SECONDS; // After this, reports still waiting are shown as overdue.
 
 	public static function hooks() {
 		add_action( self::TICK, array( __CLASS__, 'tick' ) );
 		add_action( self::MORE, array( __CLASS__, 'tick' ) ); // Follow-up run while a big batch is still going out.
+		// Also from the five-minute uptime run, so reports go out even if the hourly event is lost or late.
+		add_action( 'usmd_monitor_tick', array( __CLASS__, 'tick_backup' ) );
+		add_action( 'admin_post_usmd_reports_send_due', array( __CLASS__, 'handle_send_due' ) );
 		add_action( 'init', array( __CLASS__, 'ensure_scheduled' ) );
 		add_action( 'admin_post_usmd_report_send', array( __CLASS__, 'handle_send' ) );
 		add_action( 'admin_post_usmd_client', array( __CLASS__, 'handle_client' ) );
@@ -43,7 +49,7 @@ final class USMD_Report_Mail {
 		return ( is_array( $all ) && isset( $all[ (int) $site_id ][ $month ] ) ) ? $all[ (int) $site_id ][ $month ] : null;
 	}
 
-	/** Most recent send for a site: array( month, time, to, auto ) or null. */
+	/** Most recent successful send for a site: array( month, time, to, auto ) or null. */
 	public static function last_sent( $site_id ) {
 		$all = get_option( self::SENT );
 		if ( ! is_array( $all ) || empty( $all[ (int) $site_id ] ) ) {
@@ -51,6 +57,9 @@ final class USMD_Report_Mail {
 		}
 		$last = null;
 		foreach ( $all[ (int) $site_id ] as $month => $row ) {
+			if ( empty( $row['to'] ) ) {
+				continue; // A failed attempt.
+			}
 			if ( ! $last || $row['time'] > $last['time'] ) {
 				$last          = $row;
 				$last['month'] = $month;
@@ -59,18 +68,29 @@ final class USMD_Report_Mail {
 		return $last;
 	}
 
-	private static function mark_sent( $site_id, $month, array $to, $auto ) {
+	private static function mark_sent( $site_id, $month, array $to, $auto, $error = '' ) {
 		$all = get_option( self::SENT );
 		$all = is_array( $all ) ? $all : array();
 		$all[ (int) $site_id ][ $month ] = array(
-			'time' => time(),
-			'to'   => implode( ', ', $to ),
-			'auto' => (bool) $auto,
+			'time'  => time(),
+			'to'    => implode( ', ', $to ),
+			'auto'  => (bool) $auto,
+			'error' => (string) $error, // Set when the attempt failed; sent ( to ) is then empty.
 		);
 		// Keep the log small on dashboards with hundreds of sites: only the last KEEP months.
 		ksort( $all[ (int) $site_id ] );
 		$all[ (int) $site_id ] = array_slice( $all[ (int) $site_id ], -self::KEEP, null, true );
 		update_option( self::SENT, $all, false );
+	}
+
+	/** Why this site's report for the month now going out failed, or ''. */
+	public static function failure( $site_id ) {
+		$month = self::due_month();
+		$row   = $month ? self::sent( $site_id, $month ) : null;
+		if ( ! $row || ! empty( $row['to'] ) ) {
+			return '';
+		}
+		return ! empty( $row['error'] ) ? (string) $row['error'] : __( 'The email could not be sent.', 'unstoppable-site-manager' );
 	}
 
 	/* ---------- sending ---------- */
@@ -128,43 +148,195 @@ final class USMD_Report_Mail {
 		return true;
 	}
 
-	/** Hourly: on or after the chosen day, send last month's report to every client who gets them. */
-	public static function tick() {
-		if ( USMD_Move::is_moved() ) {
-			return; // Reports are sent by the new dashboard.
-		}
-		$s   = USMD_Admin::settings();
-		$day = (int) $s['report_day'];
-		if ( $day < 1 ) {
-			return; // Automatic sending is off.
+	/** The month whose reports are going out now ('' before the chosen day and hour, or when sending is off). */
+	public static function due_month() {
+		$day = (int) USMD_Admin::settings()['report_day'];
+		if ( $day < 1 || USMD_Move::is_moved() ) {
+			return '';
 		}
 		$now = new DateTimeImmutable( 'now', wp_timezone() );
-		if ( (int) $now->format( 'j' ) < $day || (int) $now->format( 'G' ) < 8 ) {
-			return; // Not yet: from 8 am on the chosen day.
+		if ( (int) $now->format( 'j' ) < $day || ( (int) $now->format( 'j' ) === $day && (int) $now->format( 'G' ) < 8 ) ) {
+			return ''; // Not yet: from 8 am on the chosen day.
 		}
-		$month = $now->modify( 'first day of last month' )->format( 'Y-m' );
-		$sent  = 0;
-		$start = microtime( true );
-		$more  = false;
+		return $now->modify( 'first day of last month' )->format( 'Y-m' );
+	}
+
+	/** When this month's sending started (8 am on the chosen day), as a timestamp. */
+	private static function due_since() {
+		$day = max( 1, (int) USMD_Admin::settings()['report_day'] );
+		$now = new DateTimeImmutable( 'now', wp_timezone() );
+		return $now->setDate( (int) $now->format( 'Y' ), (int) $now->format( 'n' ), $day )->setTime( 8, 0 )->getTimestamp();
+	}
+
+	/**
+	 * Sites whose report for $month should go out and hasn't: [ site, error ] pairs.
+	 * Failed attempts are included only with $failed.
+	 */
+	public static function waiting( $month, $failed = false ) {
+		$out = array();
 		foreach ( USMD_Sites::all() as $site ) {
-			if ( empty( $site->report_auto ) || '' === $site->client_email || self::sent( $site->id, $month ) ) {
+			if ( empty( $site->report_auto ) || '' === trim( (string) $site->client_email ) ) {
 				continue;
 			}
-			if ( $sent >= self::PER_TICK || microtime( true ) - $start > self::BUDGET ) {
-				$more = true; // The rest go out in a follow-up run a couple of minutes from now.
-				break;
-			}
-			$r = self::send( $site, $month, null, false, true );
-			++$sent;
-			if ( is_wp_error( $r ) ) {
-				USMD_Sites::add_local_activity( $site->id, 'report', 'email_failed', $r->get_error_message() );
-				// Record the attempt so a broken mail setup doesn't retry every hour all month.
-				self::mark_sent( $site->id, $month, array(), true );
+			$row = self::sent( $site->id, $month );
+			if ( ! $row ) {
+				$out[] = array( $site, '' );
+			} elseif ( $failed && empty( $row['to'] ) ) {
+				$out[] = array( $site, isset( $row['error'] ) ? (string) $row['error'] : '' );
 			}
 		}
-		if ( $more && ! wp_next_scheduled( self::MORE ) ) {
+		return $out;
+	}
+
+	/** The five-minute uptime run checks for reports to send at most every 15 minutes. */
+	public static function tick_backup() {
+		if ( get_transient( 'usmd_report_backup' ) ) {
+			return;
+		}
+		set_transient( 'usmd_report_backup', 1, 15 * MINUTE_IN_SECONDS );
+		self::tick();
+	}
+
+	/** Hourly: on or after the chosen day, send last month's report to every client who gets them. */
+	public static function tick() {
+		$month = self::due_month();
+		if ( '' === $month ) {
+			return;
+		}
+		self::run( $month, false );
+	}
+
+	/**
+	 * Send $month's waiting reports, within the time budget; the rest follow in a couple of minutes.
+	 *
+	 * @param bool $retry Also try again the ones that failed (Send now).
+	 * @return array sent, failed, left
+	 */
+	public static function run( $month, $retry ) {
+		if ( get_transient( 'usmd_report_running' ) ) {
+			return array( 'sent' => 0, 'failed' => 0, 'left' => count( self::waiting( $month, $retry ) ) );
+		}
+		set_transient( 'usmd_report_running', 1, 5 * MINUTE_IN_SECONDS ); // Never two runs at once (double emails).
+		$trying = get_option( self::TRYING );
+		$trying = is_array( $trying ) ? $trying : array();
+		$sent   = 0;
+		$failed = 0;
+		$left   = 0;
+		$start  = microtime( true );
+		foreach ( self::waiting( $month, $retry ) as $w ) {
+			$site = $w[0];
+			// A send that started over ten minutes ago and never finished: the server stopped it (time or memory limit).
+			if ( ! $retry && isset( $trying[ $site->id ] ) && time() - (int) $trying[ $site->id ] > 10 * MINUTE_IN_SECONDS ) {
+				unset( $trying[ $site->id ] );
+				update_option( self::TRYING, $trying, false );
+				$msg = __( 'Sending stopped before it finished (the server ran out of time or memory). Use Send now to try again.', 'unstoppable-site-manager' );
+				self::mark_sent( $site->id, $month, array(), true, $msg );
+				USMD_Sites::add_local_activity( $site->id, 'report', 'email_failed', $msg );
+				++$failed;
+				continue;
+			}
+			if ( $sent + $failed >= self::PER_TICK || microtime( true ) - $start > self::BUDGET ) {
+				++$left;
+				continue;
+			}
+			$trying[ $site->id ] = time();
+			update_option( self::TRYING, $trying, false );
+			try {
+				$r = self::send( $site, $month, null, false, true );
+			} catch ( Throwable $e ) {
+				/* translators: %s: error message. */
+				$r = new WP_Error( 'usmd_report_crash', sprintf( __( 'The report could not be built: %s', 'unstoppable-site-manager' ), $e->getMessage() ) );
+			}
+			unset( $trying[ $site->id ] );
+			update_option( self::TRYING, $trying, false );
+			if ( is_wp_error( $r ) ) {
+				++$failed;
+				USMD_Sites::add_local_activity( $site->id, 'report', 'email_failed', $r->get_error_message() );
+				// Recorded, so a broken mail setup doesn't retry every hour all month; Send now tries again.
+				self::mark_sent( $site->id, $month, array(), true, $r->get_error_message() );
+			} else {
+				++$sent;
+			}
+		}
+		delete_transient( 'usmd_report_running' );
+		if ( $left && ! wp_next_scheduled( self::MORE ) ) {
 			wp_schedule_single_event( time() + 2 * MINUTE_IN_SECONDS, self::MORE );
 		}
+		if ( $sent || $failed || $left ) {
+			update_option( self::RUN, array( 'time' => time(), 'month' => $month, 'sent' => $sent, 'failed' => $failed, 'left' => $left ), false );
+		}
+		return array( 'sent' => $sent, 'failed' => $failed, 'left' => $left );
+	}
+
+	/** Reports overdue now (still waiting or failed, two hours after sending began), for the notice on the Sites screen. */
+	public static function overdue() {
+		$month = self::due_month();
+		if ( '' === $month || time() < self::due_since() + self::GRACE ) {
+			return array();
+		}
+		return array( 'month' => $month, 'items' => self::waiting( $month, true ) );
+	}
+
+	/** Notice: reports that should have gone out and didn't, with Send now. */
+	public static function overdue_notice() {
+		$o = self::overdue();
+		if ( ! $o || ! $o['items'] ) {
+			return;
+		}
+		$failed = count( array_filter( $o['items'], static function ( $w ) { return '' !== $w[1]; } ) );
+		$n      = count( $o['items'] );
+		$label  = wp_date( 'F Y', strtotime( $o['month'] . '-01' ) );
+		?>
+		<div class="notice notice-warning usmd-reports-overdue"><p>
+			<strong>
+				<?php
+				/* translators: 1: number of reports, 2: month. */
+				echo esc_html( sprintf( _n( '%1$d %2$s report has not gone out yet.', '%1$d %2$s reports have not gone out yet.', $n, 'unstoppable-site-manager' ), $n, $label ) );
+				?>
+			</strong>
+			<?php
+			if ( $failed ) {
+				/* translators: %d: number of reports. */
+				echo esc_html( sprintf( _n( '%d failed: see the reason on the Reports screen.', '%d failed: see the reasons on the Reports screen.', $failed, 'unstoppable-site-manager' ), $failed ) ) . ' ';
+			}
+			?>
+		</p><p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
+				<input type="hidden" name="action" value="usmd_reports_send_due">
+				<?php wp_nonce_field( 'usmd_reports_send_due' ); ?>
+				<button type="submit" class="button button-primary"><?php esc_html_e( 'Send now', 'unstoppable-site-manager' ); ?></button>
+			</form>
+			<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-reports' ) ); ?>"><?php esc_html_e( 'Reports', 'unstoppable-site-manager' ); ?></a>
+		</p></div>
+		<?php
+	}
+
+	/** One line for Settings: when automatic sending last ran and what it did. */
+	public static function status_line() {
+		$r = get_option( self::RUN );
+		if ( ! is_array( $r ) || empty( $r['time'] ) ) {
+			return __( 'Automatic sending has not sent anything yet.', 'unstoppable-site-manager' );
+		}
+		/* translators: 1: time ago, 2: month, 3: sent, 4: failed. */
+		$line = sprintf( __( 'Last automatic run %1$s ago (%2$s reports): %3$d sent, %4$d failed.', 'unstoppable-site-manager' ), human_time_diff( (int) $r['time'] ), wp_date( 'F Y', strtotime( $r['month'] . '-01' ) ), (int) $r['sent'], (int) $r['failed'] );
+		if ( ! empty( $r['left'] ) ) {
+			/* translators: %d: number of reports. */
+			$line .= ' ' . sprintf( __( '%d more going out in a few minutes.', 'unstoppable-site-manager' ), (int) $r['left'] );
+		}
+		return $line;
+	}
+
+	/** Send now: every report due this month that hasn't gone out, including failed ones. */
+	public static function handle_send_due() {
+		self::guard( 'usmd_reports_send_due' );
+		$month = self::due_month();
+		if ( '' === $month ) {
+			$month = wp_date( 'Y-m', strtotime( 'first day of last month', current_time( 'timestamp' ) ) ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- local month.
+		}
+		delete_transient( 'usmd_report_running' ); // A run stopped by the server must not block a manual send.
+		$r = self::run( $month, true );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'usmd-reports', 'sent' => (int) $r['sent'], 'failed' => (int) $r['failed'], 'left' => (int) $r['left'] ), admin_url( 'admin.php' ) ) );
+		exit;
 	}
 
 	/* ---------- admin actions ---------- */

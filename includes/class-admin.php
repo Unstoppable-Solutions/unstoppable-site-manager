@@ -537,6 +537,10 @@ final class USMD_Admin {
 					}
 					?>
 				</p>
+				<?php $usmd_fail = USMD_Report_Mail::failure( $site->id ); ?>
+				<?php if ( $usmd_fail ) : ?>
+					<p class="usmd-report-failed"><strong><?php esc_html_e( 'Last attempt failed:', 'unstoppable-site-manager' ); ?></strong> <?php echo esc_html( $usmd_fail ); ?></p>
+				<?php endif; ?>
 				<?php submit_button( __( 'Save client', 'unstoppable-site-manager' ), 'secondary', 'submit', false ); ?>
 			</form>
 		</div>
@@ -556,6 +560,19 @@ final class USMD_Admin {
 		?>
 		<div class="wrap usmd-wrap usmd-reports">
 			<h1><?php esc_html_e( 'Client reports', 'unstoppable-site-manager' ); ?></h1>
+			<?php
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- display only.
+			if ( isset( $_GET['sent'] ) ) {
+				$usmd_r = array( 'sent' => absint( $_GET['sent'] ), 'failed' => isset( $_GET['failed'] ) ? absint( $_GET['failed'] ) : 0, 'left' => isset( $_GET['left'] ) ? absint( $_GET['left'] ) : 0 );
+				echo '<div class="notice ' . ( $usmd_r['failed'] ? 'notice-error' : 'notice-success' ) . ' is-dismissible"><p>' . esc_html(
+					/* translators: 1: sent, 2: failed, 3: still to go. */
+					sprintf( __( 'Reports sent: %1$d. Failed: %2$d. Still to go (sending in a few minutes): %3$d.', 'unstoppable-site-manager' ), $usmd_r['sent'], $usmd_r['failed'], $usmd_r['left'] )
+				) . ( $usmd_r['failed'] ? ' ' . esc_html__( 'The reason is shown next to each site below.', 'unstoppable-site-manager' ) : '' ) . '</p></div>';
+			} else {
+				USMD_Report_Mail::overdue_notice();
+			}
+			// phpcs:enable
+			?>
 			<p class="usmd-reports-lead">
 				<?php
 				if ( (int) $s['report_day'] ) {
@@ -609,6 +626,7 @@ final class USMD_Admin {
 									<button type="submit" class="button button-small"><?php echo $done && ! empty( $done['to'] ) ? esc_html__( 'Send again', 'unstoppable-site-manager' ) : esc_html__( 'Send now', 'unstoppable-site-manager' ); ?></button>
 								</form>
 								<?php if ( $done && ! empty( $done['to'] ) ) : ?><span class="usmd-muted usmd-reports-sent">✓ <?php echo esc_html( wp_date( 'M j', $done['time'] ) ); ?></span><?php endif; ?>
+								<?php if ( $done && empty( $done['to'] ) ) : ?><span class="usmd-report-failed" title="<?php echo esc_attr( isset( $done['error'] ) ? $done['error'] : '' ); ?>">✕ <?php echo esc_html( isset( $done['error'] ) && $done['error'] ? $done['error'] : __( 'Failed', 'unstoppable-site-manager' ) ); ?></span><?php endif; ?>
 							<?php endif; ?>
 						</td>
 					</tr>
@@ -645,6 +663,7 @@ final class USMD_Admin {
 		<div class="wrap usmd-wrap">
 			<h1 class="wp-heading-inline">Sites</h1>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-add' ) ); ?>" class="page-title-action">Add site</a>
+			<?php USMD_Report_Mail::overdue_notice(); ?>
 
 			<?php if ( ! $sites ) : ?>
 				<div class="usmd-empty">
@@ -1319,6 +1338,7 @@ final class USMD_Admin {
 							<?php endfor; ?>
 						</select>
 						<p class="description"><?php esc_html_e( 'From 8 am that day, last month\'s report goes to every client whose site has "Email the monthly report" switched on (on the site page or under Reports). Each report is sent once.', 'unstoppable-site-manager' ); ?></p>
+						<p class="description"><strong><?php echo esc_html( USMD_Report_Mail::status_line() ); ?></strong></p>
 					</td></tr>
 					<tr><th><label for="usmd-agency-email"><?php esc_html_e( 'Your email', 'unstoppable-site-manager' ); ?></label></th><td><input id="usmd-agency-email" name="agency_email" type="email" class="regular-text" value="<?php echo esc_attr( $s['agency_email'] ); ?>" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>"><p class="description"><?php esc_html_e( 'Test reports and your blind copies go here, and it is the From and reply address unless you set others below. Empty: this WordPress site\'s admin email.', 'unstoppable-site-manager' ); ?></p></td></tr>
 					<tr><th><label for="usmd-report-subject"><?php esc_html_e( 'Subject', 'unstoppable-site-manager' ); ?></label></th><td><input id="usmd-report-subject" name="report_subject" class="large-text" value="<?php echo esc_attr( $s['report_subject'] ); ?>"><p class="description"><?php esc_html_e( 'You can use {site}, {month} and {agency}.', 'unstoppable-site-manager' ); ?></p></td></tr>

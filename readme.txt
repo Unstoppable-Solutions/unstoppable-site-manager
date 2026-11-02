@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.25.0
+Stable tag: 0.25.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,12 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.25.1 =
+* Monthly reports: also started from the five-minute uptime run, so they go out even when WordPress's hourly schedule is late or lost.
+* If reports haven't gone out two hours after the chosen time, the Sites and Reports screens say so, with a Send now button that also retries failed ones.
+* A failed report shows why, on the site's Client box and the Reports screen. One report that can't be built no longer stops the others, and a send the server cut off is reported instead of silently skipped.
+* Settings > Report emails shows when automatic sending last ran and what it sent.
 
 = 0.25.0 =
 * Security: requests to sites running Unstoppable Site Connector 0.11.0 or later name the site they are for, so a request can't be replayed to another site. Update the connector on your sites (it updates like any plugin).
@@ -275,6 +281,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.25.1 =
+Monthly reports go out more reliably, and you're told (with Send now) when they don't.
 
 = 0.25.0 =
 Security update. Also update Unstoppable Site Connector on your sites to 0.11.0.
