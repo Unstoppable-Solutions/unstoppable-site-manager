@@ -549,10 +549,18 @@ final class USMD_Admin {
 
 	/** Reports: every site's report contact, schedule and last send in one place. */
 	public static function page_reports() {
-		$s     = self::settings();
-		$month = wp_date( 'Y-m', strtotime( 'first day of last month', current_time( 'timestamp' ) ) ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- local month.
-		$label = wp_date( 'F Y', strtotime( $month . '-01' ) );
-		$sites = USMD_Sites::all_starred_first();
+		$s      = self::settings();
+		$months = USMD_Report_Mail::months();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+		$pick   = isset( $_GET['month'] ) ? sanitize_text_field( wp_unslash( $_GET['month'] ) ) : '';
+		$month  = isset( $months[ $pick ] ) ? $pick : array_keys( $months )[1]; // Default: last month.
+		$label  = wp_date( 'F Y', strtotime( $month . '-01' ) );
+		$is_now = array_keys( $months )[0] === $month;
+		$sites  = USMD_Sites::all_starred_first();
+		$with   = 0;
+		foreach ( $sites as $site ) {
+			$with += '' !== trim( (string) $site->client_email ) ? 1 : 0;
+		}
 		$auto  = 0;
 		foreach ( $sites as $site ) {
 			$auto += ( $site->report_auto && $site->client_email ) ? 1 : 0;
@@ -562,11 +570,22 @@ final class USMD_Admin {
 			<h1><?php esc_html_e( 'Client reports', 'unstoppable-site-manager' ); ?></h1>
 			<?php
 			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- display only.
-			if ( isset( $_GET['sent'] ) ) {
+			if ( isset( $_GET['one'] ) ) {
+				$usmd_one = USMD_Sites::get( isset( $_GET['site'] ) ? absint( $_GET['site'] ) : 0 );
+				if ( 'sent' === $_GET['one'] && $usmd_one ) {
+					/* translators: 1: month, 2: site name. */
+					echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( __( 'The %1$s report for %2$s was emailed.', 'unstoppable-site-manager' ), $label, $usmd_one->name ) ) . '</p></div>';
+				} else {
+					$usmd_err = get_transient( 'usmd_mail_error_' . get_current_user_id() );
+					echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $usmd_err ? $usmd_err : __( 'The report could not be emailed.', 'unstoppable-site-manager' ) ) . '</p></div>';
+				}
+			} elseif ( isset( $_GET['sent'] ) ) {
 				$usmd_r = array( 'sent' => absint( $_GET['sent'] ), 'failed' => isset( $_GET['failed'] ) ? absint( $_GET['failed'] ) : 0, 'left' => isset( $_GET['left'] ) ? absint( $_GET['left'] ) : 0 );
 				echo '<div class="notice ' . ( $usmd_r['failed'] ? 'notice-error' : 'notice-success' ) . ' is-dismissible"><p>' . esc_html(
 					/* translators: 1: sent, 2: failed, 3: still to go. */
-					sprintf( __( 'Reports sent: %1$d. Failed: %2$d. Still to go (sending in a few minutes): %3$d.', 'unstoppable-site-manager' ), $usmd_r['sent'], $usmd_r['failed'], $usmd_r['left'] )
+					! $usmd_r['left'] ? sprintf( __( 'Reports sent: %1$d. Failed: %2$d.', 'unstoppable-site-manager' ), $usmd_r['sent'], $usmd_r['failed'] )
+						. ( ! $usmd_r['sent'] && ! $usmd_r['failed'] ? ' ' . __( 'Every client on the list already has this report.', 'unstoppable-site-manager' ) : '' )
+					: sprintf( isset( $_GET['manual'] ) ? __( 'Reports sent: %1$d. Failed: %2$d. Still to go: %3$d (press the button again to send them).', 'unstoppable-site-manager' ) : __( 'Reports sent: %1$d. Failed: %2$d. Still to go (sending in a few minutes): %3$d.', 'unstoppable-site-manager' ), $usmd_r['sent'], $usmd_r['failed'], $usmd_r['left'] )
 				) . ( $usmd_r['failed'] ? ' ' . esc_html__( 'The reason is shown next to each site below.', 'unstoppable-site-manager' ) : '' ) . '</p></div>';
 			} else {
 				USMD_Report_Mail::overdue_notice();
@@ -584,6 +603,45 @@ final class USMD_Admin {
 				?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-settings#usmd-report-email-settings' ) ); ?>"><?php esc_html_e( 'Email settings', 'unstoppable-site-manager' ); ?></a>
 			</p>
+			<div class="usmd-reports-bar">
+				<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="usmd-reports-month">
+					<input type="hidden" name="page" value="usmd-reports">
+					<label for="usmd-reports-month"><?php esc_html_e( 'Report for', 'unstoppable-site-manager' ); ?></label>
+					<select id="usmd-reports-month" name="month" onchange="this.form.submit()">
+						<?php foreach ( $months as $m => $ml ) : ?>
+							<option value="<?php echo esc_attr( $m ); ?>" <?php selected( $m, $month ); ?>><?php echo esc_html( $ml ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<noscript><button type="submit" class="button"><?php esc_html_e( 'Show', 'unstoppable-site-manager' ); ?></button></noscript>
+				</form>
+				<?php if ( $with ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="usmd-reports-bulk"
+						data-ask="<?php echo esc_attr( sprintf( /* translators: %s: month. */ __( 'Email the %s report to these clients now? Clients who were already sent it are skipped.', 'unstoppable-site-manager' ), $label ) ); ?>">
+						<input type="hidden" name="action" value="usmd_reports_send_month">
+						<input type="hidden" name="month" value="<?php echo esc_attr( $month ); ?>">
+						<?php wp_nonce_field( 'usmd_reports_send_month' ); ?>
+						<label for="usmd-reports-scope" class="screen-reader-text"><?php esc_html_e( 'Which clients', 'unstoppable-site-manager' ); ?></label>
+						<select id="usmd-reports-scope" name="scope">
+							<option value="auto"><?php esc_html_e( 'Clients with monthly email on', 'unstoppable-site-manager' ); ?></option>
+							<option value="all">
+								<?php
+								/* translators: %d: number of clients. */
+								echo esc_html( sprintf( _n( 'Every client with an email (%d)', 'Every client with an email (%d)', $with, 'unstoppable-site-manager' ), $with ) );
+								?>
+							</option>
+						</select>
+						<button type="submit" class="button button-primary">
+							<?php
+							/* translators: %s: month. */
+							echo esc_html( sprintf( __( 'Email the %s report', 'unstoppable-site-manager' ), $label ) );
+							?>
+						</button>
+					</form>
+				<?php endif; ?>
+			</div>
+			<?php if ( $is_now ) : ?>
+				<p class="usmd-muted"><?php esc_html_e( 'This month isn\'t over: the report shows what has been done so far. Sending it now doesn\'t stop the full report going out automatically when the month ends.', 'unstoppable-site-manager' ); ?></p>
+			<?php endif; ?>
 			<table class="widefat striped usmd-table usmd-reports-table">
 				<thead><tr>
 					<th><?php esc_html_e( 'Site', 'unstoppable-site-manager' ); ?></th>
@@ -622,6 +680,7 @@ final class USMD_Admin {
 									<input type="hidden" name="site" value="<?php echo (int) $site->id; ?>">
 									<input type="hidden" name="month" value="<?php echo esc_attr( $month ); ?>">
 									<input type="hidden" name="to" value="<?php echo esc_attr( $site->client_email ); ?>">
+									<input type="hidden" name="back" value="reports">
 									<?php wp_nonce_field( 'usmd_report_send' ); ?>
 									<button type="submit" class="button button-small"><?php echo $done && ! empty( $done['to'] ) ? esc_html__( 'Send again', 'unstoppable-site-manager' ) : esc_html__( 'Send now', 'unstoppable-site-manager' ); ?></button>
 								</form>

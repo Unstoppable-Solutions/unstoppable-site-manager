@@ -31,6 +31,7 @@ final class USMD_Report_Mail {
 		// Also from the five-minute uptime run, so reports go out even if the hourly event is lost or late.
 		add_action( 'usmd_monitor_tick', array( __CLASS__, 'tick_backup' ) );
 		add_action( 'admin_post_usmd_reports_send_due', array( __CLASS__, 'handle_send_due' ) );
+		add_action( 'admin_post_usmd_reports_send_month', array( __CLASS__, 'handle_send_month' ) );
 		add_action( 'init', array( __CLASS__, 'ensure_scheduled' ) );
 		add_action( 'admin_post_usmd_report_send', array( __CLASS__, 'handle_send' ) );
 		add_action( 'admin_post_usmd_client', array( __CLASS__, 'handle_client' ) );
@@ -75,7 +76,9 @@ final class USMD_Report_Mail {
 			'time'  => time(),
 			'to'    => implode( ', ', $to ),
 			'auto'  => (bool) $auto,
-			'error' => (string) $error, // Set when the attempt failed; sent ( to ) is then empty.
+			'error'   => (string) $error, // Set when the attempt failed; sent ( to ) is then empty.
+			// Sent before the month was over: the automatic send after it ends still sends the full report.
+			'partial' => $month === wp_date( 'Y-m' ),
 		);
 		// Keep the log small on dashboards with hundreds of sites: only the last KEEP months.
 		ksort( $all[ (int) $site_id ] );
@@ -172,14 +175,14 @@ final class USMD_Report_Mail {
 	 * Sites whose report for $month should go out and hasn't: [ site, error ] pairs.
 	 * Failed attempts are included only with $failed.
 	 */
-	public static function waiting( $month, $failed = false ) {
+	public static function waiting( $month, $failed = false, $all = false, $redo_partial = true ) {
 		$out = array();
-		foreach ( USMD_Sites::all() as $site ) {
-			if ( empty( $site->report_auto ) || '' === trim( (string) $site->client_email ) ) {
+		foreach ( apply_filters( 'usmd_report_sites', USMD_Sites::all() ) as $site ) {
+			if ( ( ! $all && empty( $site->report_auto ) ) || '' === trim( (string) $site->client_email ) ) {
 				continue;
 			}
 			$row = self::sent( $site->id, $month );
-			if ( ! $row ) {
+			if ( ! $row || ( $redo_partial && ! empty( $row['partial'] ) && $month !== wp_date( 'Y-m' ) ) ) {
 				$out[] = array( $site, '' );
 			} elseif ( $failed && empty( $row['to'] ) ) {
 				$out[] = array( $site, isset( $row['error'] ) ? (string) $row['error'] : '' );
@@ -212,9 +215,9 @@ final class USMD_Report_Mail {
 	 * @param bool $retry Also try again the ones that failed (Send now).
 	 * @return array sent, failed, left
 	 */
-	public static function run( $month, $retry ) {
+	public static function run( $month, $retry, $all = false ) {
 		if ( get_transient( 'usmd_report_running' ) ) {
-			return array( 'sent' => 0, 'failed' => 0, 'left' => count( self::waiting( $month, $retry ) ) );
+			return array( 'sent' => 0, 'failed' => 0, 'left' => count( self::waiting( $month, $retry, $all, ! $all ) ) );
 		}
 		set_transient( 'usmd_report_running', 1, 5 * MINUTE_IN_SECONDS ); // Never two runs at once (double emails).
 		$trying = get_option( self::TRYING );
@@ -223,7 +226,7 @@ final class USMD_Report_Mail {
 		$failed = 0;
 		$left   = 0;
 		$start  = microtime( true );
-		foreach ( self::waiting( $month, $retry ) as $w ) {
+		foreach ( self::waiting( $month, $retry, $all, ! $all ) as $w ) {
 			$site = $w[0];
 			// A send that started over ten minutes ago and never finished: the server stopped it (time or memory limit).
 			if ( ! $retry && isset( $trying[ $site->id ] ) && time() - (int) $trying[ $site->id ] > 10 * MINUTE_IN_SECONDS ) {
@@ -259,10 +262,10 @@ final class USMD_Report_Mail {
 			}
 		}
 		delete_transient( 'usmd_report_running' );
-		if ( $left && ! wp_next_scheduled( self::MORE ) ) {
+		if ( $left && ! $all && ! wp_next_scheduled( self::MORE ) ) {
 			wp_schedule_single_event( time() + 2 * MINUTE_IN_SECONDS, self::MORE );
 		}
-		if ( $sent || $failed || $left ) {
+		if ( ! $all && ( $sent || $failed || $left ) ) {
 			update_option( self::RUN, array( 'time' => time(), 'month' => $month, 'sent' => $sent, 'failed' => $failed, 'left' => $left ), false );
 		}
 		return array( 'sent' => $sent, 'failed' => $failed, 'left' => $left );
@@ -326,6 +329,55 @@ final class USMD_Report_Mail {
 		return $line;
 	}
 
+	/** Months a report can be sent for: this month so far, then the last twelve. month => label */
+	public static function months() {
+		$out = array();
+		$now = new DateTimeImmutable( 'first day of this month', wp_timezone() );
+		for ( $i = 0; $i <= 12; $i++ ) {
+			$m         = $now->modify( "-{$i} months" );
+			$label     = wp_date( 'F Y', $m->getTimestamp() );
+			$out[ $m->format( 'Y-m' ) ] = 0 === $i
+				/* translators: %s: month. */
+				? sprintf( __( '%s (this month so far)', 'unstoppable-site-manager' ), $label )
+				: ( 1 === $i ? sprintf( /* translators: %s: month. */ __( '%s (last month)', 'unstoppable-site-manager' ), $label ) : $label );
+		}
+		return $out;
+	}
+
+	/** Reports screen: send the chosen month's report to every client with an email (or only those with monthly email on). */
+	public static function handle_send_month() {
+		self::guard( 'usmd_reports_send_month' );
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- checked in guard().
+		$month = isset( $_POST['month'] ) ? sanitize_text_field( wp_unslash( $_POST['month'] ) ) : '';
+		$every = isset( $_POST['scope'] ) && 'all' === $_POST['scope'];
+		// phpcs:enable
+		if ( ! isset( self::months()[ $month ] ) ) {
+			wp_die( esc_html__( 'That month is not available.', 'unstoppable-site-manager' ) );
+		}
+		delete_transient( 'usmd_report_running' );
+		// Sites already sent this month's report are skipped, so pressing it again only sends the rest.
+		$r = $every ? self::run( $month, true, true ) : self::run_auto_only( $month );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'usmd-reports', 'month' => $month, 'sent' => (int) $r['sent'], 'failed' => (int) $r['failed'], 'left' => (int) $r['left'], 'manual' => 1 ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/** Only the sites with monthly email on, skipping any already sent for $month. */
+	private static function run_auto_only( $month ) {
+		$keep = array();
+		foreach ( USMD_Sites::all() as $site ) {
+			if ( empty( $site->report_auto ) ) {
+				$keep[] = (int) $site->id;
+			}
+		}
+		$skip = static function ( $sites ) use ( $keep ) {
+			return array_values( array_filter( $sites, static function ( $s ) use ( $keep ) { return ! in_array( (int) $s->id, $keep, true ); } ) );
+		};
+		add_filter( 'usmd_report_sites', $skip );
+		$r = self::run( $month, true, true );
+		remove_filter( 'usmd_report_sites', $skip );
+		return $r;
+	}
+
 	/** Send now: every report due this month that hasn't gone out, including failed ones. */
 	public static function handle_send_due() {
 		self::guard( 'usmd_reports_send_due' );
@@ -376,6 +428,10 @@ final class USMD_Report_Mail {
 		);
 		if ( is_wp_error( $r ) ) {
 			set_transient( 'usmd_mail_error_' . get_current_user_id(), $r->get_error_message(), 120 );
+		}
+		if ( isset( $_POST['back'] ) && 'reports' === $_POST['back'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked in guard().
+			wp_safe_redirect( add_query_arg( array( 'page' => 'usmd-reports', 'month' => $month, 'one' => is_wp_error( $r ) ? 'error' : 'sent', 'site' => (int) $site->id ), admin_url( 'admin.php' ) ) );
+			exit;
 		}
 		wp_safe_redirect( USMD_Admin::site_url( $site->id, $args ) );
 		exit;

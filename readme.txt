@@ -109,6 +109,7 @@ This plugin connects to the following services.
 * If reports haven't gone out two hours after the chosen time, the Sites and Reports screens say so, with a Send now button that also retries failed ones.
 * A failed report shows why, on the site's Client box and the Reports screen. One report that can't be built no longer stops the others, and a send the server cut off is reported instead of silently skipped.
 * Settings > Report emails shows when automatic sending last ran and what it sent.
+* Reports screen: pick any month, including this month so far, and email that month's report to every client with monthly email on, or to every client with an email. Clients who already have it are skipped. A report sent before its month ends still goes out in full when the month is over.
 
 = 0.25.0 =
 * Security: requests to sites running Unstoppable Site Connector 0.11.0 or later name the site they are for, so a request can't be replayed to another site. Update the connector on your sites (it updates like any plugin).
@@ -283,7 +284,7 @@ This plugin connects to the following services.
 == Upgrade Notice ==
 
 = 0.25.1 =
-Monthly reports go out more reliably, and you're told (with Send now) when they don't.
+Monthly reports go out more reliably, you're told (with Send now) when they don't, and you can send any month's reports by hand.
 
 = 0.25.0 =
 Security update. Also update Unstoppable Site Connector on your sites to 0.11.0.

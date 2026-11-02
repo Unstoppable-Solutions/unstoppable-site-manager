@@ -719,3 +719,5 @@ h2 .usmd-group-tag { margin-left: 6px; font-size: 12px; }
 .usmd-reports-table .usmd-report-failed { display: inline-block; max-width: 280px; margin: 0; font-size: 12px; }
 .usmd-reports-overdue form { margin: 0; }
 .usmd-reports-overdue p:last-child { display: flex; gap: 6px; align-items: center; }
+.usmd-reports-bar { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; margin: 4px 0 12px; }
+.usmd-reports-bar form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
