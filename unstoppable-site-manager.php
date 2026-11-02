@@ -3,7 +3,7 @@
  * Plugin Name: Unstoppable Site Manager
  * Plugin URI: https://unstoppablesolutions.app/plugins/unstoppable-site-manager
  * Description: Manage all your clients' WordPress sites from your own site: updates, plugins, health, SSL, one-click sign-in and monthly client reports. Pair it with Unstoppable Site Connector on each client site. Replaces FM Dashboard.
- * Version: 0.24.0
+ * Version: 0.25.0
  * Author: Unstoppable Solutions
  * Author URI: https://unstoppablesolutions.app
  * License: GPL-2.0-or-later
@@ -18,13 +18,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'USMD_VERSION', '0.24.0' );
+define( 'USMD_VERSION', '0.25.0' );
 // The connector's WordPress.org slug, used for install links on the Add Site screen.
 define( 'USMD_CONNECTOR_SLUG', 'unstoppable-site-connector' );
 // Where people can read about and get the connector.
 define( 'USMD_CONNECTOR_PAGE', 'https://wordpress.org/plugins/unstoppable-site-connector/' );
 // Newest connector release. Sites below it are flagged on the Sites screen.
-define( 'USMD_LATEST_CONNECTOR', '0.10.0' );
+define( 'USMD_LATEST_CONNECTOR', '0.11.0' );
 // Oldest connector that can receive plugins (and so connector updates) from the dashboard.
 define( 'USMD_PUSHABLE_CONNECTOR', '0.2.0' );
 define( 'USMD_FILE', __FILE__ );
@@ -62,7 +62,7 @@ require_once USMD_DIR . 'includes/class-connector-zip.php';
 
 final class USMD_Plugin {
 
-	const DB_VERSION = 5;
+	const DB_VERSION = 6;
 
 	public static function init() {
 		add_action( 'rest_api_init', array( 'USMD_Receiver', 'register' ) );
@@ -120,6 +120,7 @@ final class USMD_Plugin {
 			if ( $have && $have < 3 ) {
 				USMD_Packages::remove_legacy_files(); // 0.15.0: plugin ZIPs are no longer kept in uploads.
 			}
+			USMD_Migrate::forget_legacy_key(); // 0.25.0: FM Dashboard's leftover copy of the signing key.
 			update_option( 'usmd_db_version', self::DB_VERSION, false );
 		}
 	}

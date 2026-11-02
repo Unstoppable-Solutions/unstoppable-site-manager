@@ -210,6 +210,8 @@
 			a.classList.remove('is-busy');
 			a.removeAttribute('aria-busy');
 			var url = res.success ? res.data.url : ((res.data && res.data.fallback) || fallback);
+			if (!/^https?:\/\//i.test(String(url || ''))) { url = fallback; } // Never run a javascript: or data: link here.
+			if (!/^https?:\/\//i.test(String(url || ''))) { if (win && !win.closed) { win.close(); } loginNote(name + ': the site returned an unexpected link.', 'bad'); return; }
 			if (res.success) {
 				loginNote(fmt(i18n.signedIn || 'Opened %1$s signed in as %2$s.', name, res.data.user), 'ok');
 			} else {

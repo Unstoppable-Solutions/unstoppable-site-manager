@@ -231,8 +231,8 @@ final class USMD_Bulk {
 		// The normal pairing: this dashboard calls the site back with its one-time code.
 		$id = USMD_Client::pair( $key );
 		if ( is_wp_error( $id ) ) {
-			self::record( $p['id'], 'refused', 0, $k['site'], $id->get_error_message() );
-			return $fail( 'usmd_bulk_pair', $id->get_error_message(), 502 );
+			self::record( $p['id'], 'refused', 0, $k['site'], $id->get_error_message() ); // The full reason, for the dashboard's log.
+			return $fail( 'usmd_bulk_pair', 'The dashboard could not connect to this site. See the bulk-connect log on the dashboard.', 502 );
 		}
 		self::record( $p['id'], 'connected', $id, $k['site'] );
 		USMD_Sites::add_local_activity( $id, 'connector', 'bulk_connected', $k['site'] );

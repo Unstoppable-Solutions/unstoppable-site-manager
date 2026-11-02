@@ -71,8 +71,11 @@ final class USMD_Speed {
 
 	/** Request headers: the relay needs to know which dashboard is asking. */
 	private static function headers() {
-		return self::uses_relay() ? array( 'X-USMD-Dashboard' => self::dashboard_id() ) : array();
+		// Your own key goes in a header, not the address, so it stays out of request logs.
+		return self::uses_relay() ? array( 'X-USMD-Dashboard' => self::dashboard_id() ) : array( 'X-Goog-Api-Key' => self::key() );
 	}
+
+	const MAX_BYTES = 8388608; // Google's full answer is under 1 MB; the relay's is tiny.
 
 	/** Hourly while on; nothing scheduled while off. */
 	public static function schedule() {
@@ -157,7 +160,6 @@ final class USMD_Speed {
 				'url'      => rawurlencode( $url ),
 				'strategy' => 'mobile',
 				'category' => 'performance',
-				'key'      => rawurlencode( self::key() ),
 			),
 			/** Filters the PageSpeed Insights endpoint (for testing against a stand-in). */
 			apply_filters( 'usmd_speed_api', self::API )
@@ -172,7 +174,11 @@ final class USMD_Speed {
 	public static function parse( $code, $body ) {
 		$d = json_decode( (string) $body, true );
 		if ( 200 !== (int) $code || ! is_array( $d ) ) {
-			$msg = is_array( $d ) && isset( $d['error']['message'] ) ? (string) $d['error']['message'] : '';
+			$msg = is_array( $d ) && isset( $d['error']['message'] ) && is_scalar( $d['error']['message'] ) ? (string) $d['error']['message'] : '';
+			if ( 503 === (int) $code && 'relay_busy' === $msg ) {
+				// Not a failure of this site: try again on the next run instead of waiting a day.
+				return array( 'error' => __( 'The free speed service is busy. Try again in a few minutes.', 'unstoppable-site-manager' ), 'retry' => true );
+			}
 			if ( 429 === (int) $code && 'relay_limit' === $msg ) {
 				return array( 'error' => __( 'The free speed service has used today\'s share for this dashboard. Checks continue tomorrow, or add your own free Google API key in Settings > Page speed.', 'unstoppable-site-manager' ) );
 			}
@@ -204,10 +210,10 @@ final class USMD_Speed {
 			return array( 'error' => $why ? wp_strip_all_tags( substr( $why, 0, 200 ) ) : __( 'Google returned no score for this page.', 'unstoppable-site-manager' ) );
 		}
 		$audit = static function ( $id ) use ( $lr ) {
-			return isset( $lr['audits'][ $id ]['displayValue'] ) ? wp_strip_all_tags( (string) $lr['audits'][ $id ]['displayValue'] ) : '';
+			return isset( $lr['audits'][ $id ]['displayValue'] ) && is_scalar( $lr['audits'][ $id ]['displayValue'] ) ? substr( wp_strip_all_tags( (string) $lr['audits'][ $id ]['displayValue'] ), 0, 32 ) : '';
 		};
 		return array(
-			'score' => (int) round( (float) $score * 100 ),
+			'score' => max( 0, min( 100, (int) round( ( is_numeric( $score ) ? (float) $score : 0 ) * 100 ) ) ),
 			'lcp'   => $audit( 'largest-contentful-paint' ),
 			'fcp'   => $audit( 'first-contentful-paint' ),
 			'tbt'   => $audit( 'total-blocking-time' ),
@@ -243,12 +249,20 @@ final class USMD_Speed {
 
 	/** Check one site now (Check now on the site page). */
 	public static function check( $site ) {
-		$res = wp_remote_get( self::request_url( $site->url ), array( 'timeout' => self::TIMEOUT, 'headers' => self::headers() ) );
+		$res = wp_remote_get(
+			self::request_url( $site->url ),
+			array(
+				'timeout'             => self::TIMEOUT,
+				'headers'             => self::headers(),
+				'limit_response_size' => self::MAX_BYTES,
+			)
+		);
 		if ( is_wp_error( $res ) ) {
 			/* translators: %s: error message. */
 			return self::record( $site->id, array( 'error' => sprintf( __( 'Could not reach Google: %s', 'unstoppable-site-manager' ), $res->get_error_message() ) ) );
 		}
-		return self::record( $site->id, self::parse( wp_remote_retrieve_response_code( $res ), wp_remote_retrieve_body( $res ) ) );
+		$parsed = self::parse( wp_remote_retrieve_response_code( $res ), wp_remote_retrieve_body( $res ) );
+		return empty( $parsed['retry'] ) ? self::record( $site->id, $parsed ) : $parsed;
 	}
 
 	/** Sites whose turn it is, oldest check first. */
@@ -283,7 +297,7 @@ final class USMD_Speed {
 						'type'    => 'GET',
 						'headers' => self::headers(),
 						'data'    => array(),
-						'options' => array( 'timeout' => self::TIMEOUT, 'connect_timeout' => 15 ),
+						'options' => array( 'timeout' => self::TIMEOUT, 'connect_timeout' => 15, 'max_bytes' => self::MAX_BYTES ),
 					);
 				}
 			}
@@ -293,7 +307,10 @@ final class USMD_Speed {
 			$answers = \WpOrg\Requests\Requests::request_multiple( $reqs, array( 'timeout' => self::TIMEOUT ) );
 			foreach ( $answers as $id => $a ) {
 				if ( $a instanceof \WpOrg\Requests\Response ) {
-					self::record( $id, self::parse( $a->status_code, $a->body ) );
+					$parsed = self::parse( $a->status_code, $a->body );
+					if ( empty( $parsed['retry'] ) ) {
+						self::record( $id, $parsed ); // A busy relay: the site stays due and is tried on the next run.
+					}
 				} else {
 					/* translators: %s: error message. */
 					self::record( $id, array( 'error' => sprintf( __( 'Could not reach Google: %s', 'unstoppable-site-manager' ), is_object( $a ) && method_exists( $a, 'getMessage' ) ? $a->getMessage() : '?' ) ) );
@@ -315,6 +332,9 @@ final class USMD_Speed {
 			wp_send_json_error( array( 'message' => __( 'Add a Google API key in Settings > Page speed first.', 'unstoppable-site-manager' ) ) );
 		}
 		$r = self::check( $site );
+		if ( ! empty( $r['retry'] ) ) {
+			wp_send_json_error( array( 'message' => $r['error'] ) );
+		}
 		ob_start();
 		self::panel( $site );
 		wp_send_json_success( array( 'panel' => ob_get_clean(), 'error' => isset( $r['error'] ) ? $r['error'] : '' ) );

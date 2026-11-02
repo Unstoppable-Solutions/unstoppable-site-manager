@@ -28,6 +28,16 @@ final class USMD_Migrate {
 		}
 	}
 
+	/**
+	 * FM Dashboard's copy of the signing key, once it has been taken over: otherwise it
+	 * stays in the database even after the key is moved to wp-config.php.
+	 */
+	public static function forget_legacy_key() {
+		if ( ! class_exists( 'FMD_Plugin' ) && get_option( 'fmd_keys' ) && get_option( 'usmd_keys' ) ) {
+			delete_option( 'fmd_keys' );
+		}
+	}
+
 	public static function run() {
 		if ( get_option( self::STATE ) ) {
 			return;
@@ -50,6 +60,7 @@ final class USMD_Migrate {
 			self::move_thumbs();
 			USMD_Sites::clear_job_errors();
 		}
+		self::forget_legacy_key();
 
 		// FM Dashboard's background jobs would otherwise keep firing with nothing to run them.
 		wp_clear_scheduled_hook( 'fmd_sync_tick' );

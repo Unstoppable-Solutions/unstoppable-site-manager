@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.24.0
+Stable tag: 0.25.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,14 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.25.0 =
+* Security: requests to sites running Unstoppable Site Connector 0.11.0 or later name the site they are for, so a request can't be replayed to another site. Update the connector on your sites (it updates like any plugin).
+* Security: one-click login only opens plain web links returned by the site, never javascript: or data: links.
+* Security: signed requests and pairing no longer follow redirects; connection keys must point at one website; a site can't pair with an id that belongs to another site.
+* Security: reports from sites are size-limited and checked, so a broken or hostile site can't break the dashboard's screens.
+* Security: FM Dashboard's leftover copy of the signing key is removed after the takeover.
+* New public address /wp-json/usmd/v1/pubkey with this dashboard's public key (nothing secret), which connectors 0.11.0 check before accepting a dashboard move.
 
 = 0.24.0 =
 * Page speed (off until you turn it on, no key needed): each site's home page is checked with Google PageSpeed Insights about once a week. The mobile score (0 to 100) shows on the site's card and page with its main timings, a Check now button and a link to Google's full report. Client reports include it, and the daily email says when a score drops. Checks go through the free Unstoppable Solutions relay, or straight to Google with your own free API key.
@@ -267,6 +275,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.25.0 =
+Security update. Also update Unstoppable Site Connector on your sites to 0.11.0.
 
 = 0.24.0 =
 New: weekly page speed scores from Google PageSpeed Insights (off until you turn it on).

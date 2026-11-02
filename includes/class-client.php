@@ -26,6 +26,13 @@ final class USMD_Client {
 		if ( is_wp_error( $k ) ) {
 			return $k;
 		}
+		// The key's addresses must be web addresses on one site.
+		$bare = static function ( $u ) {
+			return preg_replace( '/^www\./', '', strtolower( (string) wp_parse_url( (string) $u, PHP_URL_HOST ) ) );
+		};
+		if ( ! preg_match( '#^https?://#i', (string) $k['site'] ) || ! preg_match( '#^https?://#i', (string) $k['api'] ) || '' === $bare( $k['site'] ) || $bare( $k['site'] ) !== $bare( $k['api'] ) ) {
+			return new WP_Error( 'usmd_key', __( 'That connection key has addresses that do not belong to one website. Make a new key on the client site.', 'unstoppable-site-manager' ) );
+		}
 
 		$push = true;
 		$r    = self::pair_request( $k, USMD_Receiver::push_url() );
@@ -39,6 +46,11 @@ final class USMD_Client {
 		}
 		if ( is_wp_error( $r ) ) {
 			return $r;
+		}
+		$uuid = isset( $r['site_id'] ) ? (string) $r['site_id'] : '';
+		$same = $uuid ? USMD_Sites::get_by_uuid( $uuid ) : null;
+		if ( ! preg_match( '/^[a-f0-9-]{36}$/i', $uuid ) || ( $same && $bare( $same->url ) !== $bare( $k['site'] ) ) ) {
+			return new WP_Error( 'usmd_pair_id', __( 'The site answered with an id that belongs to another site here, so it was not added.', 'unstoppable-site-manager' ) );
 		}
 
 		$id = USMD_Sites::save_connection(
@@ -62,7 +74,8 @@ final class USMD_Client {
 		$response = wp_remote_post(
 			$k['api'] . 'pair',
 			array(
-				'timeout' => 45,
+				'redirection' => 0,
+				'timeout'     => 45,
 				'headers' => array( 'Content-Type' => 'application/json' ),
 				'body'    => wp_json_encode(
 					array(
@@ -93,16 +106,17 @@ final class USMD_Client {
 			$params['_by'] = $user->user_login; // Shown in the site's security alerts.
 		}
 		$body    = wp_json_encode( (object) $params );
-		$headers = USMD_Keys::sign_headers( self::route_path( $site->api, $route ), $body );
+		$headers = USMD_Keys::sign_headers( self::route_path( $site->api, $route ), $body, self::bound_id( $site ) );
 		if ( is_wp_error( $headers ) ) {
 			return $headers;
 		}
 		$response = wp_remote_post(
 			$site->api . $route,
 			array(
-				'timeout' => $timeout,
-				'headers' => $headers + array( 'Content-Type' => 'application/json' ),
-				'body'    => $body,
+				'timeout'     => $timeout,
+				'headers'     => $headers + array( 'Content-Type' => 'application/json' ),
+				'body'        => $body,
+				'redirection' => 0, // A signed request goes to the site's API only, never wherever a redirect points.
 			)
 		);
 		$r = self::parse( $response );
@@ -110,6 +124,18 @@ final class USMD_Client {
 			USMD_Sites::mark_error( $site->id, $r->get_error_message() );
 		}
 		return $r;
+	}
+
+	/**
+	 * The site id to sign requests for: connectors from 0.11.0 check it, so a request
+	 * made for one site is refused by every other. Older connectors get unbound signatures.
+	 */
+	public static function bound_id( $site ) {
+		if ( empty( $site->site_uuid ) ) {
+			return '';
+		}
+		$v = USMD_Sites::connector_version( $site );
+		return ( '' !== $v && version_compare( $v, '0.11.0', '>=' ) ) ? (string) $site->site_uuid : '';
 	}
 
 	/**
@@ -346,7 +372,8 @@ final class USMD_Client {
 		$host = static function ( $u ) {
 			return preg_replace( '/^www\./', '', strtolower( (string) wp_parse_url( $u, PHP_URL_HOST ) ) );
 		};
-		if ( ! $url || $host( $url ) !== $host( $site->url ) ) {
+		// Only a plain web link: never javascript: or data: (which would run in this dashboard).
+		if ( ! $url || ! preg_match( '#^https?://#i', $url ) || $host( $url ) !== $host( $site->url ) ) {
 			return new WP_Error( 'usmd_login_bad_url', __( 'The site returned an unexpected login link.', 'unstoppable-site-manager' ) );
 		}
 		return array(

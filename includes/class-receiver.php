@@ -29,6 +29,18 @@ final class USMD_Receiver {
 			$namespaces[] = self::LEGACY_NS; // Not while FM Dashboard itself is still running.
 		}
 		foreach ( $namespaces as $ns ) {
+			if ( 'usmd/v1' === $ns ) {
+				// Public on purpose: this dashboard's public key, so a connector can check a dashboard move.
+				register_rest_route(
+					$ns,
+					'/pubkey',
+					array(
+						'methods'             => 'GET',
+						'callback'            => array( __CLASS__, 'pubkey' ),
+						'permission_callback' => '__return_true',
+					)
+				);
+			}
 			register_rest_route(
 				$ns,
 				'/push',
@@ -41,7 +53,17 @@ final class USMD_Receiver {
 		}
 	}
 
+	/** This dashboard's public key (nothing secret). Connectors from 0.11.0 check it before accepting a dashboard move. */
+	public static function pubkey() {
+		return rest_ensure_response( array( 'public_key' => USMD_Keys::public_key() ) );
+	}
+
+	const MAX_BODY = 4194304; // 4 MB: a site with hundreds of plugins sends well under 1 MB.
+
 	public static function receive( WP_REST_Request $request ) {
+		if ( strlen( (string) $request->get_body() ) > self::MAX_BODY ) {
+			return new WP_Error( 'usmd_too_big', 'Report too large.', array( 'status' => 413 ) );
+		}
 		$site = USMD_Sites::get_by_uuid( (string) $request->get_header( 'x-fmc-site' ) );
 		if ( ! $site ) {
 			return new WP_Error( 'usmd_unknown_site', 'Unknown site.', array( 'status' => 404 ) );

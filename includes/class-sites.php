@@ -172,7 +172,66 @@ final class USMD_Sites {
 		return (int) $wpdb->insert_id;
 	}
 
+	/**
+	 * A report as it is safe to keep: plugin and theme lists hold plain strings and are
+	 * capped, so a broken or hostile site can't break the dashboard's screens.
+	 */
+	public static function clean_status( array $status ) {
+		$str = static function ( $v, $len = 300 ) {
+			return is_scalar( $v ) ? substr( (string) $v, 0, $len ) : '';
+		};
+		foreach ( array( 'plugins' => 3000, 'themes' => 500 ) as $list => $cap ) {
+			if ( ! isset( $status[ $list ] ) ) {
+				continue;
+			}
+			$out = array();
+			foreach ( is_array( $status[ $list ] ) ? array_slice( $status[ $list ], 0, $cap ) : array() as $item ) {
+				if ( ! is_array( $item ) ) {
+					continue;
+				}
+				foreach ( $item as $k => $v ) {
+					if ( is_array( $v ) || is_object( $v ) ) {
+						unset( $item[ $k ] ); // Lists hold flat records only.
+					} elseif ( is_string( $v ) ) {
+						$item[ $k ] = $str( $v );
+					}
+				}
+				$id = 'plugins' === $list ? 'file' : 'slug';
+				if ( empty( $item[ $id ] ) || ! is_string( $item[ $id ] ) ) {
+					continue; // Every plugin needs its file, every theme its folder.
+				}
+				$item['name']    = isset( $item['name'] ) && is_string( $item['name'] ) && '' !== $item['name'] ? $item['name'] : $item[ $id ];
+				$item['version'] = isset( $item['version'] ) && is_scalar( $item['version'] ) ? (string) $item['version'] : '';
+				$out[] = $item;
+			}
+			$status[ $list ] = $out;
+		}
+		foreach ( array( array( 'site', 'name' ), array( 'site', 'home' ), array( 'core', 'version' ), array( 'core', 'update' ), array( 'environment', 'php' ) ) as $path ) {
+			if ( isset( $status[ $path[0] ][ $path[1] ] ) ) {
+				$status[ $path[0] ][ $path[1] ] = $str( $status[ $path[0] ][ $path[1] ] );
+			}
+		}
+		return $status;
+	}
+
+	/** Activity details: one level of plain values (lists of plain values allowed), capped in size. */
+	private static function clean_details( $d ) {
+		if ( ! is_array( $d ) ) {
+			return null;
+		}
+		$out = array();
+		foreach ( array_slice( $d, 0, 40, true ) as $k => $v ) {
+			if ( is_array( $v ) ) {
+				$out[ $k ] = array_values( array_map( static function ( $x ) { return is_scalar( $x ) ? substr( (string) $x, 0, 200 ) : ''; }, array_slice( $v, 0, 50 ) ) );
+			} elseif ( is_scalar( $v ) || null === $v ) {
+				$out[ $k ] = is_string( $v ) ? substr( $v, 0, 1000 ) : $v;
+			}
+		}
+		return $out;
+	}
+
 	public static function store_status( $id, array $status, $check_branding = true ) {
+		$status = self::clean_status( $status );
 		if ( class_exists( 'USMD_Toolbar' ) ) {
 			USMD_Toolbar::flush(); // Counts in the top toolbar.
 		}
@@ -343,7 +402,13 @@ final class USMD_Sites {
 	public static function add_activity( $id, array $rows ) {
 		global $wpdb;
 		$max = self::max_remote_id( $id );
-		foreach ( $rows as $r ) {
+		foreach ( array_slice( $rows, 0, 1000 ) as $r ) { // A push carries at most a few hundred rows.
+			if ( ! is_array( $r ) ) {
+				continue;
+			}
+			foreach ( array( 'created_at', 'type', 'action', 'object', 'actor' ) as $f ) {
+				$r[ $f ] = isset( $r[ $f ] ) && is_scalar( $r[ $f ] ) ? (string) $r[ $f ] : '';
+			}
 			$rid = isset( $r['id'] ) ? (int) $r['id'] : 0;
 			if ( $rid <= $max ) {
 				continue; // Already stored (rows arrive in ascending order).
@@ -358,7 +423,7 @@ final class USMD_Sites {
 					'action'     => substr( (string) $r['action'], 0, 40 ),
 					'object'     => substr( (string) $r['object'], 0, 191 ),
 					'actor'      => substr( (string) $r['actor'], 0, 60 ),
-					'details'    => isset( $r['details'] ) ? wp_json_encode( $r['details'] ) : null,
+					'details'    => isset( $r['details'] ) ? wp_json_encode( self::clean_details( $r['details'] ) ) : null,
 				)
 			);
 			$max = $rid;

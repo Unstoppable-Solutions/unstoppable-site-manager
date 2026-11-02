@@ -149,19 +149,27 @@ final class USMD_Keys {
 		return $k['public'];
 	}
 
-	public static function canonical( $method, $path, $ts, $nonce, $body ) {
-		return implode( "\n", array( strtoupper( (string) $method ), (string) $path, (string) $ts, (string) $nonce, hash( 'sha256', (string) $body ) ) );
+	/**
+	 * With $site_id (connectors from 0.11.0), the signature names the site it is for, so a
+	 * request made for one site can't be replayed to another: every site trusts this one key.
+	 */
+	public static function canonical( $method, $path, $ts, $nonce, $body, $site_id = '' ) {
+		$parts = array( strtoupper( (string) $method ), (string) $path, (string) $ts, (string) $nonce, hash( 'sha256', (string) $body ) );
+		if ( '' !== (string) $site_id ) {
+			$parts[] = 'site:' . $site_id;
+		}
+		return implode( "\n", $parts );
 	}
 
 	/** @return array|WP_Error Signature headers, or an error when the secret key is missing. */
-	public static function sign_headers( $path, $body ) {
+	public static function sign_headers( $path, $body, $site_id = '' ) {
 		$k = self::get();
 		if ( '' === $k['secret'] ) {
 			return new WP_Error( 'usmd_no_key', __( "This dashboard's signing key is missing, so it can't send requests to your sites. If you moved it to wp-config.php, put the USMD_SECRET_KEY line back.", 'unstoppable-site-manager' ) );
 		}
 		$ts    = (string) time();
 		$nonce = bin2hex( random_bytes( 16 ) );
-		$sig   = sodium_crypto_sign_detached( self::canonical( 'POST', $path, $ts, $nonce, $body ), base64_decode( $k['secret'] ) );
+		$sig   = sodium_crypto_sign_detached( self::canonical( 'POST', $path, $ts, $nonce, $body, $site_id ), base64_decode( $k['secret'] ) );
 		return array(
 			'X-FMC-Timestamp' => $ts,
 			'X-FMC-Nonce'     => $nonce,
