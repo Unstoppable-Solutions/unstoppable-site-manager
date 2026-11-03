@@ -109,6 +109,7 @@ This plugin connects to the following services.
 * If reports haven't gone out two hours after the chosen time, the Sites and Reports screens say so, with a Send now button that also retries failed ones.
 * A failed report shows why, on the site's Client box and the Reports screen. One report that can't be built no longer stops the others, and a send the server cut off is reported instead of silently skipped.
 * Settings > Report emails shows when automatic sending last ran and what it sent.
+* Sites screen: Refresh all and Update all never run at the same time, the button shows progress ("Updating 3 / 15…"), and both always come back when the run ends, even if a site sends an unexpected answer.
 * Reports screen: pick any month, including this month so far, and email that month's report to every client with monthly email on, or to every client with an email. Clients who already have it are skipped. A report sent before its month ends still goes out in full when the month is over.
 
 = 0.25.0 =

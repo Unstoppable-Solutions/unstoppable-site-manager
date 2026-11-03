@@ -255,11 +255,23 @@
 		});
 	}
 
-	/* Runs a job over many sites one after another; one failure never stops the rest. */
+	/* Runs a job over many sites one after another; one failure never stops the rest.
+	   Only one such job at a time, so Refresh all and Update all never hide each other's progress. */
+	var bulkBusy = false;
+	function bulkButtons() {
+		return Array.prototype.filter.call(document.querySelectorAll('#usmd-sync-all, #usmd-update-all, .usmd-section-act'), function (b) { return !!b; });
+	}
 	function queue(act, ids, button) {
 		if (!ids.length) { log('Nothing to do.'); return Promise.resolve(); }
-		if (button) { button.disabled = true; }
-		var run = Progress.start((act === 'update' ? 'Updating ' : 'Checking ') + plural(ids.length, 'site', 'sites'), ids.length, act === 'update' ? 'Updating' : 'Checking');
+		if (bulkBusy) { log('Another job is still running. Wait for it to finish, or reload the page to stop it.', 'bad'); return Promise.resolve(); }
+		bulkBusy = true;
+		var locked = bulkButtons().filter(function (b) { return !b.disabled; });
+		locked.forEach(function (b) { b.disabled = true; });
+		var label = button ? button.textContent : '', doneCount = 0;
+		var verb = act === 'update' ? 'Updating' : 'Checking';
+		var showCount = function () { if (button) { button.textContent = verb + ' ' + doneCount + ' / ' + ids.length + '…'; } };
+		showCount();
+		var run = Progress.start((act === 'update' ? 'Updating ' : 'Checking ') + plural(ids.length, 'site', 'sites'), ids.length, verb);
 		// Several sites at once: each is its own request and the work happens on the client sites.
 		var lanes = Math.min(act === 'refresh' ? 4 : 2, ids.length), next = 0, busy = [];
 		function lane() {
@@ -267,20 +279,33 @@
 			var id = ids[next++], name = nameOf(id);
 			busy.push(name);
 			run.now(busy.join(', '));
-			return runOne(act, id).then(function (res) {
-				busy.splice(busy.indexOf(name), 1);
-				var good = res.success && !(res.data.counts && res.data.counts.failed);
-				var detail = !res.success ? (res.data && res.data.message) || 'error' : (act === 'update' ? summarize(res) : updatesText(id));
-				run.result(name, good, detail);
+			return runOne(act, id).catch(function (err) {
+				return { success: false, data: { message: (err && err.message) || 'error' } };
+			}).then(function (res) {
+				try {
+					busy.splice(busy.indexOf(name), 1);
+					var ok = res && res.success && res.data;
+					var good = !!ok && !(res.data.counts && res.data.counts.failed);
+					var detail = !ok ? (res && res.data && res.data.message) || 'error' : (act === 'update' ? summarize(res) : updatesText(id));
+					run.result(name, good, detail);
+				} catch (err) {
+					try { run.result(name, false, 'error: ' + err.message); } catch (e2) { /* keep going */ }
+				}
+				doneCount++;
+				showCount();
 				return lane();
 			});
 		}
 		var all = [];
 		for (var i = 0; i < lanes; i++) { all.push(lane()); }
-		return Promise.all(all).then(function () {
-			run.finish();
-			if (button) { button.disabled = false; }
-		});
+		var finish = function () {
+			try { run.finish(); } catch (err) { /* the buttons must come back regardless */ }
+			bulkBusy = false;
+			locked.forEach(function (b) { b.disabled = false; });
+			if (button) { button.textContent = label; }
+			try { updateSections(); } catch (err) { /* not on this screen */ }
+		};
+		return Promise.all(all).then(finish, finish);
 	}
 
 	/* "2 plugin updates, 1 theme update, WordPress core update" from a card's data. */
