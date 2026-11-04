@@ -110,7 +110,24 @@ final class USMD_Content {
 		$names = implode( ', ', array_map( static function ( $x ) { return $x[0]; }, $n[ (int) $site->id ] ) );
 		/* translators: %s: user names. */
 		$title = sprintf( __( 'New administrator this week: %s', 'unstoppable-site-manager' ), $names );
-		return '<a class="usmd-pill usmd-pill-bad usmd-pill-admin" href="' . esc_url( add_query_arg( array( 'page' => self::USERS, 's' => wp_parse_url( $site->url, PHP_URL_HOST ), 'role' => 'administrator' ), admin_url( 'admin.php' ) ) ) . '" title="' . esc_attr( $title ) . '">' . esc_html__( 'New admin', 'unstoppable-site-manager' ) . '</a>';
+		return '<a class="usmd-pill usmd-pill-bad usmd-pill-admin" href="' . esc_url( add_query_arg( array( 'page' => self::USERS, 'site' => (int) $site->id, 'role' => 'administrator' ), admin_url( 'admin.php' ) ) ) . '" title="' . esc_attr( $title ) . '">' . esc_html__( 'New admin', 'unstoppable-site-manager' ) . '</a>';
+	}
+
+	/** Links from a site's page to its users and posts. */
+	public static function site_links( $site ) {
+		$c = self::of( $site );
+		if ( ! $c ) {
+			return;
+		}
+		$staff = isset( $c['users'] ) && is_array( $c['users'] ) ? count( $c['users'] ) : 0;
+		$posts = 0;
+		foreach ( array( 'post', 'page' ) as $t ) {
+			$posts += isset( $c['posts'][ $t ]['publish'] ) ? (int) $c['posts'][ $t ]['publish'] : 0;
+		}
+		echo '<p class="usmd-content-links">'
+			. '<a href="' . esc_url( add_query_arg( array( 'page' => self::USERS, 'site' => (int) $site->id ), admin_url( 'admin.php' ) ) ) . '">' . esc_html( sprintf( /* translators: %d: number of accounts. */ _n( '%d staff account', '%d staff accounts', $staff, 'unstoppable-site-manager' ), $staff ) ) . '</a>'
+			. ' · <a href="' . esc_url( add_query_arg( array( 'page' => self::POSTS, 'site' => (int) $site->id ), admin_url( 'admin.php' ) ) ) . '">' . esc_html( sprintf( /* translators: %d: number of posts and pages. */ _n( '%d published post or page', '%d published posts and pages', $posts, 'unstoppable-site-manager' ), $posts ) ) . '</a>'
+			. '</p>';
 	}
 
 	/* ---------- screens ---------- */
@@ -123,8 +140,51 @@ final class USMD_Content {
 			'type'   => isset( $_GET['type'] ) ? sanitize_key( wp_unslash( $_GET['type'] ) ) : '',
 			'status' => isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '',
 			'new'    => ! empty( $_GET['new'] ),
+			'site'   => isset( $_GET['site'] ) ? absint( $_GET['site'] ) : 0,
+			'client' => isset( $_GET['client'] ) ? absint( $_GET['client'] ) : 0,
+			'group'  => isset( $_GET['group'] ) ? absint( $_GET['group'] ) : 0,
 		);
 		// phpcs:enable
+	}
+
+	/** Is this site within the chosen site, client and group? */
+	private static function in_scope( $site, array $f ) {
+		return ( ! $f['site'] || (int) $site->id === $f['site'] )
+			&& ( ! $f['client'] || (int) $site->client_id === $f['client'] )
+			&& ( ! $f['group'] || (int) $site->group_id === $f['group'] );
+	}
+
+	/** Site, client and group pickers for the filter bar. */
+	private static function scope_fields( array $sites, array $f ) {
+		$list = array();
+		foreach ( $sites as $s ) {
+			if ( self::of( $s ) ) {
+				$list[ (int) $s->id ] = $s->name;
+			}
+		}
+		natcasesort( $list );
+		?>
+		<label class="screen-reader-text" for="usmd-content-site"><?php esc_html_e( 'Site', 'unstoppable-site-manager' ); ?></label>
+		<select name="site" id="usmd-content-site">
+			<option value="0"><?php esc_html_e( 'All sites', 'unstoppable-site-manager' ); ?></option>
+			<?php foreach ( $list as $id => $name ) : ?>
+				<option value="<?php echo (int) $id; ?>" <?php selected( $f['site'], $id ); ?>><?php echo esc_html( $name ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<?php if ( USMD_Clients::names() ) : ?>
+			<label class="screen-reader-text" for="usmd-content-client"><?php esc_html_e( 'Client', 'unstoppable-site-manager' ); ?></label>
+			<?php echo USMD_Clients::select( 'client', $f['client'], __( 'All clients', 'unstoppable-site-manager' ), ' id="usmd-content-client"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+		<?php endif; ?>
+		<?php if ( USMD_Groups::all() ) : ?>
+			<label class="screen-reader-text" for="usmd-content-group"><?php esc_html_e( 'Group', 'unstoppable-site-manager' ); ?></label>
+			<?php echo USMD_Groups::select( 'group', $f['group'], __( 'All groups', 'unstoppable-site-manager' ), ' id="usmd-content-group"' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in select(). ?>
+		<?php endif; ?>
+		<?php
+	}
+
+	/** Has any filter been chosen? */
+	private static function filtered( array $f ) {
+		return $f['s'] || $f['role'] || $f['new'] || $f['type'] || $f['status'] || $f['site'] || $f['client'] || $f['group'];
 	}
 
 	private static function site_matches( $site, $q ) {
@@ -200,7 +260,7 @@ final class USMD_Content {
 		$news   = self::new_admins();
 		foreach ( $sites as $site ) {
 			$c = self::of( $site );
-			if ( ! $c ) {
+			if ( ! $c || ! self::in_scope( $site, $f ) ) {
 				continue;
 			}
 			foreach ( isset( $c['roles'] ) && is_array( $c['roles'] ) ? $c['roles'] : array() as $r => $n ) {
@@ -246,6 +306,8 @@ final class USMD_Content {
 		$rows  = array_slice( $rows, 0, 1000 );
 		ksort( $roles );
 		$base  = admin_url( 'admin.php?page=' . self::USERS );
+		$scope = array_filter( array( 'site' => $f['site'], 'client' => $f['client'], 'group' => $f['group'] ) );
+		$base  = $scope ? add_query_arg( $scope, $base ) : $base;
 		?>
 		<div class="wrap usmd-wrap usmd-content-screen">
 			<h1><?php esc_html_e( 'Users across sites', 'unstoppable-site-manager' ); ?></h1>
@@ -267,7 +329,8 @@ final class USMD_Content {
 			</div>
 			<form method="get" class="usmd-content-filters">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::USERS ); ?>">
-				<input type="search" name="s" value="<?php echo esc_attr( $f['s'] ); ?>" placeholder="<?php esc_attr_e( 'Search sites, names, emails…', 'unstoppable-site-manager' ); ?>" class="regular-text">
+				<input type="search" name="s" value="<?php echo esc_attr( $f['s'] ); ?>" placeholder="<?php esc_attr_e( 'Search names and emails…', 'unstoppable-site-manager' ); ?>" class="regular-text">
+				<?php self::scope_fields( $sites, $f ); ?>
 				<select name="role">
 					<option value=""><?php esc_html_e( 'All roles', 'unstoppable-site-manager' ); ?></option>
 					<?php foreach ( $roles as $r => $n ) : ?>
@@ -276,7 +339,7 @@ final class USMD_Content {
 				</select>
 				<label><input type="checkbox" name="new" value="1" <?php checked( $f['new'] ); ?>> <?php esc_html_e( 'New administrators only', 'unstoppable-site-manager' ); ?></label>
 				<button type="submit" class="button"><?php esc_html_e( 'Filter', 'unstoppable-site-manager' ); ?></button>
-				<?php if ( $f['s'] || $f['role'] || $f['new'] ) : ?><a href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Clear', 'unstoppable-site-manager' ); ?></a><?php endif; ?>
+				<?php if ( self::filtered( $f ) ) : ?><a href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Clear', 'unstoppable-site-manager' ); ?></a><?php endif; ?>
 			</form>
 			<table class="widefat striped usmd-table usmd-content-table">
 				<thead><tr>
@@ -326,7 +389,7 @@ final class USMD_Content {
 		$week   = time() - WEEK_IN_SECONDS;
 		foreach ( $sites as $site ) {
 			$c = self::of( $site );
-			if ( ! $c ) {
+			if ( ! $c || ! self::in_scope( $site, $f ) ) {
 				continue;
 			}
 			foreach ( array( 'post', 'page' ) as $t ) {
@@ -368,7 +431,9 @@ final class USMD_Content {
 			'draft'   => __( 'Draft', 'unstoppable-site-manager' ),
 			'private' => __( 'Private', 'unstoppable-site-manager' ),
 		);
-		$base = admin_url( 'admin.php?page=' . self::POSTS );
+		$base  = admin_url( 'admin.php?page=' . self::POSTS );
+		$scope = array_filter( array( 'site' => $f['site'], 'client' => $f['client'], 'group' => $f['group'] ) );
+		$base  = $scope ? add_query_arg( $scope, $base ) : $base;
 		?>
 		<div class="wrap usmd-wrap usmd-content-screen">
 			<h1><?php esc_html_e( 'Posts and pages across sites', 'unstoppable-site-manager' ); ?></h1>
@@ -381,7 +446,8 @@ final class USMD_Content {
 			</div>
 			<form method="get" class="usmd-content-filters">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::POSTS ); ?>">
-				<input type="search" name="s" value="<?php echo esc_attr( $f['s'] ); ?>" placeholder="<?php esc_attr_e( 'Search sites, titles, authors…', 'unstoppable-site-manager' ); ?>" class="regular-text">
+				<input type="search" name="s" value="<?php echo esc_attr( $f['s'] ); ?>" placeholder="<?php esc_attr_e( 'Search titles and authors…', 'unstoppable-site-manager' ); ?>" class="regular-text">
+				<?php self::scope_fields( $sites, $f ); ?>
 				<select name="type">
 					<option value=""><?php esc_html_e( 'Posts and pages', 'unstoppable-site-manager' ); ?></option>
 					<option value="post" <?php selected( $f['type'], 'post' ); ?>><?php esc_html_e( 'Posts', 'unstoppable-site-manager' ); ?></option>
@@ -394,7 +460,7 @@ final class USMD_Content {
 					<?php endforeach; ?>
 				</select>
 				<button type="submit" class="button"><?php esc_html_e( 'Filter', 'unstoppable-site-manager' ); ?></button>
-				<?php if ( $f['s'] || $f['type'] || $f['status'] ) : ?><a href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Clear', 'unstoppable-site-manager' ); ?></a><?php endif; ?>
+				<?php if ( self::filtered( $f ) ) : ?><a href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Clear', 'unstoppable-site-manager' ); ?></a><?php endif; ?>
 			</form>
 			<table class="widefat striped usmd-table usmd-content-table">
 				<thead><tr>

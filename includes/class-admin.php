@@ -1270,6 +1270,7 @@ final class USMD_Admin {
 							<dt>Remote updates</dt><dd><?php echo ( isset( $env['filesystem_method'] ) && 'direct' !== $env['filesystem_method'] ) ? '<span class="is-bad">Blocked (needs FTP)</span>' : 'Available'; ?></dd>
 							<dt>Server</dt><dd class="usmd-muted"><?php echo esc_html( isset( $env['server'] ) ? $env['server'] : '' ); ?></dd>
 						</dl>
+						<?php USMD_Content::site_links( $site ); ?>
 					</div>
 
 					<?php if ( ! empty( $int['woocommerce'] ) ) : $wc = $int['woocommerce']; ?>

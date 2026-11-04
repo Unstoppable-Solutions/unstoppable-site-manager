@@ -108,6 +108,7 @@ This plugin connects to the following services.
 * New: Users. Every staff account (administrators, editors, authors and the like) on every site in one list, with email, role, when it was added and last sign-in, filters by role and a search. Subscribers and shop customers are only counted. Open takes you to that user in the site's wp-admin, already signed in.
 * New: a new administrator on any site is logged in its activity, flagged on its card ("New admin") and listed in the daily email for a week.
 * New: Posts & Pages. The most recently changed posts and pages on every site, with scheduled, pending and draft counts and filters. Edit opens it in the site's editor, already signed in.
+* Both screens filter by site, client and group, and each site's page links to its own users and posts.
 * Needs Unstoppable Site Connector 0.12.0 on each site. A site's administrator can switch sharing this off under Tools > Unstoppable Site Connector > Security.
 
 = 0.25.1 =
