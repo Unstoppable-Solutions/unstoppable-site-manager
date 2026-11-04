@@ -587,6 +587,7 @@ final class USMD_Admin {
 					/* translators: 1: sent, 2: failed, 3: still to go. */
 					! $usmd_r['left'] ? sprintf( __( 'Reports sent: %1$d. Failed: %2$d.', 'unstoppable-site-manager' ), $usmd_r['sent'], $usmd_r['failed'] )
 						. ( ! $usmd_r['sent'] && ! $usmd_r['failed'] ? ' ' . __( 'Every client on the list already has this report.', 'unstoppable-site-manager' ) : '' )
+					/* translators: 1: sent, 2: failed, 3: still to go. */
 					: sprintf( isset( $_GET['manual'] ) ? __( 'Reports sent: %1$d. Failed: %2$d. Still to go: %3$d (press the button again to send them).', 'unstoppable-site-manager' ) : __( 'Reports sent: %1$d. Failed: %2$d. Still to go (sending in a few minutes): %3$d.', 'unstoppable-site-manager' ), $usmd_r['sent'], $usmd_r['failed'], $usmd_r['left'] )
 				) . ( $usmd_r['failed'] ? ' ' . esc_html__( 'The reason is shown next to each site below.', 'unstoppable-site-manager' ) : '' ) . '</p></div>';
 			} else {
