@@ -1110,6 +1110,7 @@ final class USMD_Admin {
 
 			<div class="usmd-cols">
 				<div class="usmd-main">
+					<?php USMD_Update_Log::panel( $site ); ?>
 					<?php self::security_panel( $site ); ?>
 					<div class="usmd-panel">
 						<div class="usmd-panel-head">

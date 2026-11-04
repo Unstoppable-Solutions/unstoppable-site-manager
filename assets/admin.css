@@ -746,3 +746,27 @@ h2 .usmd-group-tag { margin-left: 6px; font-size: 12px; }
 .usmd-content-note { margin-top: 12px; }
 a.usmd-pill-admin { text-decoration: none; }
 .usmd-content-links { margin: 8px 0 0; font-size: 13px; }
+
+/* Update details: per-plugin results, reasons, Try again */
+.usmd-prog-sites { margin-top: 10px; max-height: 320px; overflow: auto; font-size: 12px; }
+.usmd-prog-sites[hidden] { display: none; }
+.usmd-upd-site { border: 1px solid #dcdcde; border-radius: 4px; padding: 6px 8px; margin: 0 0 6px; background: #fff; }
+.usmd-upd-site.has-failed { border-color: var(--usmd-bad); }
+.usmd-upd-site > summary { cursor: pointer; }
+.usmd-upd-site .usmd-update-retry { margin-top: 6px; }
+.usmd-upd-items { margin: 6px 0 0; padding: 0; list-style: none; }
+.usmd-upd-items li { margin: 0; padding: 4px 0; border-bottom: 1px solid #f0f0f1; overflow-wrap: anywhere; }
+.usmd-upd-items li:last-child { border-bottom: 0; }
+.usmd-upd-mark { display: inline-block; width: 1.2em; font-weight: 700; }
+.usmd-upd-items li.is-updated .usmd-upd-mark, .usmd-upd-site:not(.has-failed) > summary .usmd-upd-mark { color: var(--usmd-ok); }
+.usmd-upd-items li.is-failed .usmd-upd-mark, .usmd-upd-site.has-failed > summary .usmd-upd-mark { color: var(--usmd-bad); }
+.usmd-upd-items li.is-up_to_date { color: #646970; }
+.usmd-upd-reason { display: block; margin: 2px 0 0 1.2em; color: var(--usmd-bad); }
+.usmd-upd-raw { margin: 2px 0 0 1.2em; }
+.usmd-upd-raw summary { cursor: pointer; color: #646970; }
+.usmd-upd-raw code { display: block; white-space: pre-wrap; font-size: 11px; }
+.usmd-last-update.has-failed { border-left: 4px solid var(--usmd-bad); }
+.usmd-last-update .usmd-upd-items { max-height: 360px; overflow: auto; }
+.usmd-upd-sum { margin: 4px 0 0; }
+.usmd-upd-fail { color: var(--usmd-bad); }
+.usmd-upd-site strong, .usmd-upd-items strong { color: #1d2327; }

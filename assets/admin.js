@@ -80,6 +80,47 @@
 		return n;
 	}
 	function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+	/* One site's update results: a line per plugin, theme or WordPress, failures first with the reason and Try again. */
+	function updateBlock(siteId, name, items, siteError, reason) {
+		var failed = (items || []).filter(function (i) { return i.result === 'failed'; });
+		var c = { updated: 0, failed: failed.length, up_to_date: 0 };
+		(items || []).forEach(function (i) { if (i.result === 'updated') { c.updated++; } if (i.result === 'up_to_date') { c.up_to_date++; } });
+		var bad = !!siteError || c.failed > 0;
+		var block = el('details', 'usmd-upd-site' + (bad ? ' has-failed' : ''));
+		block.setAttribute('data-site-block', siteId);
+		if (bad) { block.open = true; }
+		var sum = el('summary');
+		sum.appendChild(el('span', 'usmd-upd-mark', bad ? '✕' : '✓'));
+		sum.appendChild(el('strong', '', name));
+		var parts = [];
+		if (siteError) { parts.push('could not be updated'); }
+		if (c.updated) { parts.push(c.updated + ' updated'); }
+		if (c.failed) { parts.push(c.failed + ' failed'); }
+		if (c.up_to_date) { parts.push(c.up_to_date + ' already up to date'); }
+		sum.appendChild(el('span', 'usmd-muted', ' — ' + (parts.join(', ') || 'nothing to update')));
+		block.appendChild(sum);
+		if (siteError) { block.appendChild(el('p', 'usmd-upd-reason', reason || siteError)); }
+		var ul = el('ul', 'usmd-upd-items');
+		(items || []).forEach(function (i) {
+			var li = el('li', 'is-' + i.result);
+			li.appendChild(el('span', 'usmd-upd-mark', i.result === 'updated' ? '✓' : (i.result === 'failed' ? '✕' : '–')));
+			li.appendChild(el('strong', '', i.name));
+			li.appendChild(el('span', 'usmd-muted', ' ' + (i.result === 'updated' ? i.from + ' → ' + i.to : (i.result === 'up_to_date' ? (i.from ? i.from + ', ' : '') + 'already up to date' : 'still ' + i.from))));
+			if (i.result === 'failed') { li.appendChild(el('span', 'usmd-upd-reason', i.reason || i.error || 'failed')); }
+			ul.appendChild(li);
+		});
+		if ((items || []).length) { block.appendChild(ul); }
+		if (failed.length) {
+			var retry = el('button', 'button button-small usmd-update-retry', 'Try again (' + failed.length + ')');
+			retry.type = 'button';
+			retry.dataset.site = siteId;
+			retry.dataset.items = JSON.stringify(failed.map(function (i) { return i.key; }));
+			retry.dataset.inline = '1';
+			block.appendChild(retry);
+		}
+		return block;
+	}
+
 	var Progress = (function () {
 		var root = document.getElementById('usmd-progress');
 		function reset(kind) {
@@ -127,7 +168,16 @@
 				var probs = el('details', 'usmd-prog-problems'); probs.hidden = true;
 				var probSum = el('summary'); var probList = el('ul');
 				probs.appendChild(probSum); probs.appendChild(probList);
-				[head, bar, nowEl, stats, probs].forEach(function (n) { root.appendChild(n); });
+				// Updates: what happened on each site, plugin by plugin (failures first).
+				var sitesEl = el('div', 'usmd-prog-sites'); sitesEl.hidden = true;
+				var tot = { updated: 0, failed: 0, up_to_date: 0, skipped: 0 };
+				[head, bar, nowEl, stats, probs, sitesEl].forEach(function (n) { root.appendChild(n); });
+				run.siteBlock = function (siteId, name, items, siteError, reason) {
+					sitesEl.hidden = false;
+					var old = sitesEl.querySelector('[data-site-block="' + siteId + '"]');
+					var block = updateBlock(siteId, name, items, siteError, reason);
+					if (old) { old.replaceWith(block); } else if (block.classList.contains('has-failed')) { sitesEl.insertBefore(block, sitesEl.firstChild); } else { sitesEl.appendChild(block); }
+				};
 
 				run.now = function (name) {
 					nowEl.textContent = '';
@@ -135,15 +185,20 @@
 					nowEl.appendChild(el('strong', '', name));
 					nowEl.appendChild(document.createTextNode('…'));
 				};
-				run.result = function (name, good, detail) {
+				run.result = function (name, good, detail, info) {
 					run.done++;
+					if (info) {
+						if (info.items) { info.items.forEach(function (i) { if (tot[i.result] !== undefined) { tot[i.result]++; } }); }
+						if (info.error) { tot.skipped++; }
+						run.siteBlock(info.site, name, info.items || [], info.error, info.reason);
+					}
 					if (good) { run.ok++; } else {
 						run.bad++;
 						run.problems.push(name);
 						var li = el('li'); li.appendChild(el('strong', '', name)); li.appendChild(document.createTextNode(' — ' + (detail || 'failed')));
 						probList.appendChild(li);
 						probSum.textContent = plural(run.bad, 'problem', 'problems') + ' — show details';
-						probs.hidden = false;
+						probs.hidden = !!info; // Updates: the per-site list already says it, with reasons.
 						badEl.hidden = false;
 						badEl.textContent = '⚠ ' + plural(run.bad, 'problem', 'problems');
 					}
@@ -159,11 +214,19 @@
 					root.className = 'usmd-progress is-done ' + (run.bad ? 'is-bad' : 'is-ok');
 					spin.className = 'usmd-prog-icon';
 					spin.textContent = run.bad ? '⚠' : '✓';
-					titleEl.textContent = doneTitle || (run.bad ? 'Done: ' + run.ok + ' OK, ' + plural(run.bad, 'problem', 'problems') : 'Done: all ' + plural(run.ok, 'site', 'sites') + ' OK');
+					var updTitle = '';
+					if (!sitesEl.hidden) {
+						var bits = [plural(tot.updated, 'update', 'updates') + ' installed'];
+						if (tot.failed) { bits.push(tot.failed + ' failed'); }
+						if (tot.up_to_date) { bits.push(tot.up_to_date + ' already up to date'); }
+						if (tot.skipped) { bits.push(plural(tot.skipped, 'site', 'sites') + ' could not be updated'); }
+						updTitle = 'Done: ' + plural(run.done, 'site', 'sites') + ' — ' + bits.join(', ');
+					}
+					titleEl.textContent = doneTitle || updTitle || (run.bad ? 'Done: ' + run.ok + ' OK, ' + plural(run.bad, 'problem', 'problems') : 'Done: all ' + plural(run.ok, 'site', 'sites') + ' OK');
 					nowEl.textContent = '';
 					lastEl.textContent = '';
 					close.hidden = false;
-					if (run.bad) { probs.open = true; }
+					if (run.bad && sitesEl.hidden) { probs.open = true; }
 				};
 				return run;
 			}
@@ -237,6 +300,14 @@
 
 	function summarize(res) {
 		if (!res.success) { return 'error: ' + (res.data && res.data.message ? res.data.message : 'unknown'); }
+		if (res.data && res.data.items && res.data.items.length) {
+			var up = res.data.items.filter(function (i) { return i.result === 'updated'; });
+			var bad = res.data.items.filter(function (i) { return i.result === 'failed'; });
+			var out = [];
+			if (up.length) { out.push(up.length <= 3 ? up.map(function (i) { return i.name + ' ' + i.to; }).join(', ') + ' updated' : up.length + ' updated'); }
+			if (bad.length) { out.push(bad.map(function (i) { return i.name; }).join(', ') + ' failed'); }
+			return out.join('; ') || 'already up to date';
+		}
 		var c = res.data.counts;
 		if (!c) { return 'ok'; }
 		var s = c.updated + ' updated';
@@ -287,7 +358,8 @@
 					var ok = res && res.success && res.data;
 					var good = !!ok && !(res.data.counts && res.data.counts.failed);
 					var detail = !ok ? (res && res.data && res.data.message) || 'error' : (act === 'update' ? summarize(res) : updatesText(id));
-					run.result(name, good, detail);
+					var info = act === 'update' ? { site: id, items: ok && res.data.items ? res.data.items : [], error: ok ? '' : detail, reason: res && res.data && res.data.reason } : null;
+					run.result(name, good, detail, info);
 				} catch (err) {
 					try { run.result(name, false, 'error: ' + err.message); } catch (e2) { /* keep going */ }
 				}
@@ -1088,6 +1160,28 @@
 			}
 			b.disabled = false; b.textContent = 'Check now';
 			window.alert((res.data && res.data.message) || 'Could not check the page speed.');
+		});
+	});
+
+	/* Try again: just the items that failed, on one site (progress box or the site page's Last update box). */
+	document.addEventListener('click', function (e) {
+		var b = e.target.closest && e.target.closest('.usmd-update-retry');
+		if (!b || b.disabled) { return; }
+		var items = [];
+		try { items = JSON.parse(b.dataset.items || '[]'); } catch (err) { items = []; }
+		if (!items.length) { return; }
+		b.disabled = true;
+		b.textContent = 'Trying again…';
+		var name = nameOf(b.dataset.site);
+		runOne('update', b.dataset.site, items).then(function (res) {
+			if (b.dataset.inline === '1') {
+				var block = b.closest('[data-site-block]');
+				var ok = res && res.success && res.data;
+				var fresh = updateBlock(b.dataset.site, name, ok && res.data.items ? res.data.items : [], ok ? '' : ((res && res.data && res.data.message) || 'error'), res && res.data && res.data.reason);
+				if (block) { block.replaceWith(fresh); }
+				return;
+			}
+			if (document.querySelector('.usmd-site')) { reloadSitePage({ text: summarize(res), kind: res.success && !(res.data.counts && res.data.counts.failed) ? 'ok' : 'bad' }); }
 		});
 	});
 

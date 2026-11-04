@@ -369,6 +369,7 @@ final class USMD_Sites {
 		USMD_Thumbs::delete( self::get( $id ) );
 		USMD_Vulns::forget_site( $id );
 		USMD_Speed::forget( $id );
+		USMD_Update_Log::forget( $id );
 		$wpdb->delete( self::t(), array( 'id' => (int) $id ) );
 		$wpdb->delete( self::ta(), array( 'site_id' => (int) $id ) );
 	}

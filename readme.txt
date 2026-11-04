@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.26.0
+Stable tag: 0.26.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,13 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.26.1 =
+* Improved: you can now see exactly what happened when sites update. While updates run, each site is listed with every plugin, theme and WordPress update and its result: ✓ updated (with old → new version), ✕ failed, or – already up to date. Failures come first.
+* New: a plain-English reason for each failed update (licence not active, server timed out, folder permissions, out of disk space and so on), with what the site actually said one click away.
+* New: Try again. Retries only the items that failed, from the progress box or the site page.
+* New: a Last update box on each site page shows what was updated, when and by whom.
+* Improved: the summary at the end of a run says how many updates were installed, how many failed and how many sites were already up to date.
 
 = 0.26.0 =
 * New: Users. Every staff account (administrators, editors, authors and the like) on every site in one list, with email, role, when it was added and last sign-in, filters by role and a search. Subscribers and shop customers are only counted. Open takes you to that user in the site's wp-admin, already signed in.
@@ -291,6 +298,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.26.1 =
+Clearer update results: every plugin's outcome, plain-English failure reasons and a Try again button.
 
 = 0.26.0 =
 New Users and Posts & Pages screens across all sites, and new-administrator alerts. Update the connector on your sites to 0.12.0.

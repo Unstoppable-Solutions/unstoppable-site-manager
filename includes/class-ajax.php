@@ -70,14 +70,18 @@ final class USMD_Ajax {
 			}
 		}
 
+		$before  = USMD_Sites::status( $site ); // Names for the results.
 		$results = USMD_Client::update( $site, $items );
 		if ( USMD_Vulns::enabled() ) {
 			USMD_Vulns::check_site( USMD_Sites::get( $site->id ) );
 		}
 		$card    = USMD_Admin::card_html( USMD_Sites::get( $site->id ) );
 		if ( is_wp_error( $results ) ) {
-			wp_send_json_error( array( 'message' => $results->get_error_message(), 'card' => $card ) );
+			USMD_Update_Log::record( $site->id, array(), $results->get_error_message() );
+			wp_send_json_error( array( 'message' => $results->get_error_message(), 'reason' => USMD_Update_Log::explain( $results->get_error_message() ), 'card' => $card ) );
 		}
+		$named = USMD_Update_Log::items( $before, $results );
+		USMD_Update_Log::record( $site->id, $named );
 
 		$counts = array( 'updated' => 0, 'up_to_date' => 0, 'failed' => 0 );
 		$errors = array();
@@ -87,7 +91,7 @@ final class USMD_Ajax {
 				$errors[] = $r['id'] . ': ' . ( isset( $r['error'] ) ? $r['error'] : 'failed' );
 			}
 		}
-		wp_send_json_success( array( 'counts' => $counts, 'errors' => $errors, 'results' => $results, 'card' => $card ) );
+		wp_send_json_success( array( 'counts' => $counts, 'errors' => $errors, 'results' => $results, 'items' => $named, 'card' => $card ) );
 	}
 
 	public static function thumb() {
