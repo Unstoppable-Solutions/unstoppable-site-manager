@@ -105,6 +105,7 @@ This plugin connects to the following services.
 == Changelog ==
 
 = 0.25.1 =
+* Reconnect: each site page has "Reconnect this site with a new connection key". After a migration, a new host or address, or reinstalling the connector, paste a new key and the site keeps its history, client, group, notes and report settings; a changed address is updated too. It opens by itself when the site has lost its connection.
 * Monthly reports: also started from the five-minute uptime run, so they go out even when WordPress's hourly schedule is late or lost.
 * If reports haven't gone out two hours after the chosen time, the Sites and Reports screens say so, with a Send now button that also retries failed ones.
 * A failed report shows why, on the site's Client box and the Reports screen. One report that can't be built no longer stops the others, and a send the server cut off is reported instead of silently skipped.

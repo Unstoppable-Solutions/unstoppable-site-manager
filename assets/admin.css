@@ -721,3 +721,10 @@ h2 .usmd-group-tag { margin-left: 6px; font-size: 12px; }
 .usmd-reports-overdue p:last-child { display: flex; gap: 6px; align-items: center; }
 .usmd-reports-bar { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; margin: 4px 0 12px; }
 .usmd-reports-bar form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
+
+/* reconnect */
+.usmd-reconnect { margin: 0 0 14px; padding: 10px 14px; background: #fff; border: 1px solid var(--usmd-line, #dcdcde); border-radius: 4px; }
+.usmd-reconnect summary { cursor: pointer; font-weight: 600; color: #2271b1; }
+.usmd-reconnect[open] summary { margin-bottom: 8px; }
+.usmd-reconnect textarea { max-width: 720px; }
+.usmd-reconnect p { margin: 6px 0; }

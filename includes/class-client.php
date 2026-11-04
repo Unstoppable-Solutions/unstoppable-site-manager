@@ -19,9 +19,11 @@ final class USMD_Client {
 	/**
 	 * Pair with a site using its connection key.
 	 *
+	 * @param int $into Reconnect: the site already on this dashboard to connect again (it keeps its
+	 *                  history, client, group and reports, even if its address changed).
 	 * @return int|WP_Error Site row id.
 	 */
-	public static function pair( $connection_key ) {
+	public static function pair( $connection_key, $into = 0 ) {
 		$k = self::decode_key( $connection_key );
 		if ( is_wp_error( $k ) ) {
 			return $k;
@@ -32,6 +34,19 @@ final class USMD_Client {
 		};
 		if ( ! preg_match( '#^https?://#i', (string) $k['site'] ) || ! preg_match( '#^https?://#i', (string) $k['api'] ) || '' === $bare( $k['site'] ) || $bare( $k['site'] ) !== $bare( $k['api'] ) ) {
 			return new WP_Error( 'usmd_key', __( 'That connection key has addresses that do not belong to one website. Make a new key on the client site.', 'unstoppable-site-manager' ) );
+		}
+		$target = $into ? USMD_Sites::get( $into ) : null;
+		if ( $into && ! $target ) {
+			return new WP_Error( 'usmd_reconnect', __( 'Site not found.', 'unstoppable-site-manager' ) );
+		}
+		if ( $target ) {
+			// The key's address must not belong to a different site on this dashboard.
+			foreach ( USMD_Sites::all() as $other ) {
+				if ( (int) $other->id !== (int) $target->id && $bare( $other->url ) === $bare( $k['site'] ) && untrailingslashit( strtolower( (string) wp_parse_url( $other->url, PHP_URL_PATH ) ) ) === untrailingslashit( strtolower( (string) wp_parse_url( $k['site'], PHP_URL_PATH ) ) ) ) {
+					/* translators: %s: site name. */
+					return new WP_Error( 'usmd_reconnect', sprintf( __( 'That connection key is for %s, which is a different site on this dashboard.', 'unstoppable-site-manager' ), $other->name ) );
+				}
+			}
 		}
 
 		$push = true;
@@ -49,7 +64,7 @@ final class USMD_Client {
 		}
 		$uuid = isset( $r['site_id'] ) ? (string) $r['site_id'] : '';
 		$same = $uuid ? USMD_Sites::get_by_uuid( $uuid ) : null;
-		if ( ! preg_match( '/^[a-f0-9-]{36}$/i', $uuid ) || ( $same && $bare( $same->url ) !== $bare( $k['site'] ) ) ) {
+		if ( ! preg_match( '/^[a-f0-9-]{36}$/i', $uuid ) || ( $same && ( $target ? (int) $same->id !== (int) $target->id : $bare( $same->url ) !== $bare( $k['site'] ) ) ) ) {
 			return new WP_Error( 'usmd_pair_id', __( 'The site answered with an id that belongs to another site here, so it was not added.', 'unstoppable-site-manager' ) );
 		}
 
@@ -60,6 +75,7 @@ final class USMD_Client {
 				'api'          => $k['api'],
 				'child_pubkey' => $r['child_pubkey'],
 				'push_enabled' => $push,
+				'id'           => $target ? (int) $target->id : 0,
 			)
 		);
 		if ( ! empty( $r['status'] ) && is_array( $r['status'] ) ) {

@@ -16,6 +16,7 @@ final class USMD_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_menu_branding' ) );
 		add_action( 'admin_post_usmd_add', array( __CLASS__, 'handle_add' ) );
+		add_action( 'admin_post_usmd_reconnect', array( __CLASS__, 'handle_reconnect' ) );
 		add_action( 'admin_post_usmd_settings', array( __CLASS__, 'handle_settings' ) );
 	}
 
@@ -977,6 +978,58 @@ final class USMD_Admin {
 		exit;
 	}
 
+	/** Reconnect: pair an existing site again with a new connection key, keeping everything about it. */
+	public static function handle_reconnect() {
+		if ( ! current_user_can( USMD_Security::CAP ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		check_admin_referer( 'usmd_reconnect' );
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- checked above.
+		$site = USMD_Sites::get( isset( $_POST['site'] ) ? absint( $_POST['site'] ) : 0 );
+		$key  = isset( $_POST['key'] ) ? sanitize_textarea_field( wp_unslash( $_POST['key'] ) ) : '';
+		// phpcs:enable
+		if ( ! $site ) {
+			wp_die( esc_html__( 'Site not found.', 'unstoppable-site-manager' ) );
+		}
+		$old = $site->url;
+		$id  = USMD_Client::pair( $key, $site->id );
+		if ( is_wp_error( $id ) ) {
+			set_transient( 'usmd_reconnect_error_' . get_current_user_id(), $id->get_error_message(), 120 );
+			wp_safe_redirect( self::site_url( $site->id, array( 'reconnect' => 'error' ) ) . '#usmd-reconnect' );
+			exit;
+		}
+		$now = USMD_Sites::get( $id );
+		USMD_Sites::add_local_activity( $id, 'connector', 'reconnected', $now ? $now->url : '' );
+		wp_safe_redirect( self::site_url( $id, array( 'reconnect' => ( $now && untrailingslashit( $now->url ) !== untrailingslashit( $old ) ) ? 'moved' : 'ok' ) ) );
+		exit;
+	}
+
+	/** The Reconnect box on a site page: open by itself when the site can't be reached. */
+	private static function reconnect_box( $site ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- display only.
+		$state = isset( $_GET['reconnect'] ) ? sanitize_key( $_GET['reconnect'] ) : '';
+		// phpcs:enable
+		$err   = 'error' === $state ? get_transient( 'usmd_reconnect_error_' . get_current_user_id() ) : '';
+		$open  = 'error' === $state || ( $site->last_error && ! preg_match( '/\bHTTP (401|403|406|429)\b/', (string) $site->last_error ) && 0 !== strpos( (string) $site->last_error, 'Could not reach the site' ) );
+		?>
+		<details class="usmd-reconnect" id="usmd-reconnect"<?php echo $open ? ' open' : ''; ?>>
+			<summary><?php esc_html_e( 'Reconnect this site with a new connection key', 'unstoppable-site-manager' ); ?></summary>
+			<?php if ( $err ) : ?>
+				<div class="notice notice-error inline"><p><?php echo esc_html( $err ); ?></p></div>
+			<?php endif; ?>
+			<p class="usmd-muted"><?php esc_html_e( 'After moving a site to a new host or address, or reinstalling the connector, make a new key on the site (Tools > Unstoppable Site Connector > Generate connection key) and paste it here. The site keeps its history, client, group, notes and report settings. If the address changed, it is updated here too.', 'unstoppable-site-manager' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="usmd_reconnect">
+				<input type="hidden" name="site" value="<?php echo (int) $site->id; ?>">
+				<?php wp_nonce_field( 'usmd_reconnect' ); ?>
+				<label for="usmd-reconnect-key" class="screen-reader-text"><?php esc_html_e( 'Connection key', 'unstoppable-site-manager' ); ?></label>
+				<textarea id="usmd-reconnect-key" name="key" rows="3" class="large-text code" required placeholder="<?php esc_attr_e( 'Paste the connection key', 'unstoppable-site-manager' ); ?>"></textarea>
+				<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Reconnect', 'unstoppable-site-manager' ); ?></button></p>
+			</form>
+		</details>
+		<?php
+	}
+
 	/* ---------- site detail ---------- */
 
 	/** The connector itself (or the old FM Connector): no deactivate/delete links for it. */
@@ -1042,6 +1095,16 @@ final class USMD_Admin {
 			<?php if ( $site->last_error ) : ?>
 				<div class="notice notice-error inline"><p><strong>Last error:</strong> <?php echo esc_html( $site->last_error ); ?></p></div>
 			<?php endif; ?>
+			<?php
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+			$usmd_rc = isset( $_GET['reconnect'] ) ? sanitize_key( $_GET['reconnect'] ) : '';
+			if ( 'ok' === $usmd_rc ) :
+				?>
+				<div class="notice notice-success inline"><p><?php esc_html_e( 'Reconnected. Everything about this site was kept.', 'unstoppable-site-manager' ); ?></p></div>
+			<?php elseif ( 'moved' === $usmd_rc ) : ?>
+				<div class="notice notice-success inline"><p><?php echo esc_html( sprintf( /* translators: %s: new address. */ __( 'Reconnected at its new address, %s. Everything about this site was kept.', 'unstoppable-site-manager' ), $site->url ) ); ?></p></div>
+			<?php endif; ?>
+			<?php self::reconnect_box( $site ); ?>
 			<div id="usmd-progress" class="usmd-progress" hidden></div>
 
 			<div class="usmd-cols">
@@ -1306,6 +1369,9 @@ final class USMD_Admin {
 				return __( 'Maintenance / coming soon page ended at its set time', 'unstoppable-site-manager' );
 			case 'connector.paired':
 				return 'Connected to dashboard';
+			case 'connector.reconnected':
+				/* translators: %s: site address. */
+				return sprintf( __( 'Reconnected with a new connection key (%s)', 'unstoppable-site-manager' ), $a->object );
 			case 'connector.unpaired':
 				return 'Disconnected from dashboard';
 			case 'connector.bulk_connected':

@@ -153,7 +153,7 @@ final class USMD_Sites {
 	public static function save_connection( array $d ) {
 		global $wpdb;
 		$url      = untrailingslashit( $d['url'] );
-		$existing = self::get_by_url( $url );
+		$existing = ! empty( $d['id'] ) ? self::get( (int) $d['id'] ) : self::get_by_url( $url ); // Reconnect names the site.
 		$row      = array(
 			'site_uuid'    => $d['site_uuid'],
 			'url'          => $url,
