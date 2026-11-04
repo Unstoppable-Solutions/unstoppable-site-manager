@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.25.1
+Stable tag: 0.26.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,12 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.26.0 =
+* New: Users. Every staff account (administrators, editors, authors and the like) on every site in one list, with email, role, when it was added and last sign-in, filters by role and a search. Subscribers and shop customers are only counted. Open takes you to that user in the site's wp-admin, already signed in.
+* New: a new administrator on any site is logged in its activity, flagged on its card ("New admin") and listed in the daily email for a week.
+* New: Posts & Pages. The most recently changed posts and pages on every site, with scheduled, pending and draft counts and filters. Edit opens it in the site's editor, already signed in.
+* Needs Unstoppable Site Connector 0.12.0 on each site. A site's administrator can switch sharing this off under Tools > Unstoppable Site Connector > Security.
 
 = 0.25.1 =
 * Reconnect: each site page has "Reconnect this site with a new connection key". After a migration, a new host or address, or reinstalling the connector, paste a new key and the site keeps its history, client, group, notes and report settings; a changed address is updated too. It opens by itself when the site has lost its connection.
@@ -284,6 +290,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.26.0 =
+New Users and Posts & Pages screens across all sites, and new-administrator alerts. Update the connector on your sites to 0.12.0.
 
 = 0.25.1 =
 Monthly reports go out more reliably, you're told (with Send now) when they don't, and you can send any month's reports by hand.

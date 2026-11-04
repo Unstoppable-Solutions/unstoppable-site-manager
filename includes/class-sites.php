@@ -232,6 +232,7 @@ final class USMD_Sites {
 
 	public static function store_status( $id, array $status, $check_branding = true ) {
 		$status = self::clean_status( $status );
+		$before = self::status( self::get( $id ) ); // For spotting new administrators.
 		if ( class_exists( 'USMD_Toolbar' ) ) {
 			USMD_Toolbar::flush(); // Counts in the top toolbar.
 		}
@@ -254,6 +255,7 @@ final class USMD_Sites {
 			),
 			array( 'id' => (int) $id )
 		);
+		USMD_Content::watch_admins( $id, $before, $status );
 		// A renamed connector reports its new API address; switch to it (same site only).
 		$api = isset( $status['connector']['api'] ) ? esc_url_raw( (string) $status['connector']['api'] ) : '';
 		if ( $api && preg_match( '#/uscn/v1/?$|rest_route=/uscn/v1/?$#', $api ) ) {

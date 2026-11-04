@@ -283,6 +283,7 @@ final class USMD_Admin {
 				<?php endif; ?>
 				<?php echo USMD_Monitor::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
 				<?php echo USMD_Maintenance::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
+				<?php echo USMD_Content::pill( $site ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in pill(). ?>
 				<ul class="usmd-card-meta">
 					<li>WP <?php echo esc_html( $site->wp_version ? $site->wp_version : '?' ); ?></li>
 					<li>PHP <?php echo esc_html( $site->php_version ? $site->php_version : '?' ); ?></li>
@@ -1369,6 +1370,9 @@ final class USMD_Admin {
 				return __( 'Maintenance / coming soon page ended at its set time', 'unstoppable-site-manager' );
 			case 'connector.paired':
 				return 'Connected to dashboard';
+			case 'security.new_admin':
+				/* translators: 1: user name, 2: email. */
+				return sprintf( __( 'New administrator account: %1$s %2$s', 'unstoppable-site-manager' ), $a->object, ! empty( $d['email'] ) ? '(' . $d['email'] . ')' : '' );
 			case 'connector.reconnected':
 				/* translators: %s: site address. */
 				return sprintf( __( 'Reconnected with a new connection key (%s)', 'unstoppable-site-manager' ), $a->object );

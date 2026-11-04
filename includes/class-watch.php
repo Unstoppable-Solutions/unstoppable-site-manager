@@ -119,6 +119,7 @@ final class USMD_Watch {
 	public static function findings() {
 		$out = array(
 			'vulns'   => array(),
+			'admins'  => array(),
 			'down'    => array(),
 			'ssl'     => array(),
 			'domain'  => array(),
@@ -129,6 +130,13 @@ final class USMD_Watch {
 		$seen_domains = array();
 		foreach ( USMD_Sites::all() as $site ) {
 			$stale = ! $site->last_seen || ( time() - strtotime( $site->last_seen . ' UTC' ) ) > DAY_IN_SECONDS;
+			$na = USMD_Content::new_admins();
+			if ( ! empty( $na[ (int) $site->id ] ) ) {
+				foreach ( $na[ (int) $site->id ] as $x ) {
+					/* translators: 1: user name, 2: time ago. */
+					$out['admins'][] = array( $site, sprintf( __( 'New administrator "%1$s" added %2$s ago', 'unstoppable-site-manager' ), $x[0], human_time_diff( (int) $x[1] ) ) );
+				}
+			}
 			if ( USMD_Monitor::is_down( $site->id ) ) {
 				$us            = USMD_Monitor::state( $site->id );
 				/* translators: 1: time ago, 2: reason. */
@@ -210,6 +218,7 @@ final class USMD_Watch {
 	public static function section_titles() {
 		return array(
 			'vulns'   => __( 'Known vulnerabilities', 'unstoppable-site-manager' ),
+			'admins'  => __( 'New administrator accounts', 'unstoppable-site-manager' ),
 			'down'    => __( 'Sites down or not syncing', 'unstoppable-site-manager' ),
 			'ssl'     => __( 'SSL certificates expiring', 'unstoppable-site-manager' ),
 			'domain'  => __( 'Domains expiring', 'unstoppable-site-manager' ),

@@ -91,6 +91,8 @@ final class USMD_Toolbar {
 			'usmd-plugins'  => array( __( 'Plugins', 'unstoppable-site-manager' ), $page( 'usmd-plugins' ) ),
 			'usmd-clients'  => array( __( 'Clients', 'unstoppable-site-manager' ), $page( 'usmd-clients' ) ),
 			'usmd-add'      => array( __( 'Add Site', 'unstoppable-site-manager' ), $page( 'usmd-add' ) ),
+			'usmd-users'    => array( __( 'Users', 'unstoppable-site-manager' ), $page( 'usmd-users' ) ),
+			'usmd-content'  => array( __( 'Posts & Pages', 'unstoppable-site-manager' ), $page( 'usmd-content' ) ),
 			'usmd-reports'  => array( __( 'Reports', 'unstoppable-site-manager' ), $page( 'usmd-reports' ) ),
 			'usmd-settings' => array( __( 'Settings', 'unstoppable-site-manager' ), $page( 'usmd-settings' ) ),
 		);

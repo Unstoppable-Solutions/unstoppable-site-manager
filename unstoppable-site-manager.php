@@ -3,7 +3,7 @@
  * Plugin Name: Unstoppable Site Manager
  * Plugin URI: https://unstoppablesolutions.app/plugins/unstoppable-site-manager
  * Description: Manage all your clients' WordPress sites from your own site: updates, plugins, health, SSL, one-click sign-in and monthly client reports. Pair it with Unstoppable Site Connector on each client site. Replaces FM Dashboard.
- * Version: 0.25.1
+ * Version: 0.26.0
  * Author: Unstoppable Solutions
  * Author URI: https://unstoppablesolutions.app
  * License: GPL-2.0-or-later
@@ -18,13 +18,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'USMD_VERSION', '0.25.1' );
+define( 'USMD_VERSION', '0.26.0' );
 // The connector's WordPress.org slug, used for install links on the Add Site screen.
 define( 'USMD_CONNECTOR_SLUG', 'unstoppable-site-connector' );
 // Where people can read about and get the connector.
 define( 'USMD_CONNECTOR_PAGE', 'https://wordpress.org/plugins/unstoppable-site-connector/' );
 // Newest connector release. Sites below it are flagged on the Sites screen.
-define( 'USMD_LATEST_CONNECTOR', '0.11.0' );
+define( 'USMD_LATEST_CONNECTOR', '0.12.0' );
 // Oldest connector that can receive plugins (and so connector updates) from the dashboard.
 define( 'USMD_PUSHABLE_CONNECTOR', '0.2.0' );
 define( 'USMD_FILE', __FILE__ );
@@ -50,6 +50,7 @@ require_once USMD_DIR . 'includes/class-work.php';
 require_once USMD_DIR . 'includes/class-bulk.php';
 require_once USMD_DIR . 'includes/class-clients.php';
 require_once USMD_DIR . 'includes/class-groups.php';
+require_once USMD_DIR . 'includes/class-content.php';
 require_once USMD_DIR . 'includes/class-branding.php';
 require_once USMD_DIR . 'includes/class-move.php';
 require_once USMD_DIR . 'includes/class-maintenance.php';
@@ -87,6 +88,7 @@ final class USMD_Plugin {
 			USMD_Admin::hooks();
 			USMD_Ajax::hooks();
 			USMD_Plugins_Page::hooks();
+			USMD_Content::hooks();
 			USMD_Report::hooks();
 			USMD_Work::hooks();
 			USMD_Maintenance::hooks();
