@@ -94,6 +94,10 @@ jobs:
             echo "::error title=$1::$(tail -n 8 "$LOG" | tr '\n' ' ' | sed 's/%/%25/g')"
             exit 1
           }
+          # Strip spaces/line breaks that sneak in when pasting secrets.
+          SVN_USERNAME="$(printf '%s' "$SVN_USERNAME" | tr -d '[:space:]')"
+          SVN_PASSWORD="$(printf '%s' "$SVN_PASSWORD" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          echo "Logging in as '$SVN_USERNAME' with a ${#SVN_PASSWORD}-character password"
           AUTH=(--non-interactive --no-auth-cache --username "$SVN_USERNAME" --password "$SVN_PASSWORD")
 
           echo "Checking out $URL"
