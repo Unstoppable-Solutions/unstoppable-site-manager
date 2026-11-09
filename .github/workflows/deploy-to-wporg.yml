@@ -79,20 +79,54 @@ jobs:
             exit 1
           fi
 
-      - name: WordPress Plugin Deploy
+      - name: Deploy to WordPress.org SVN
         id: deploy
-        uses: 10up/action-wordpress-plugin-deploy@stable
-        with:
-          generate-zip: true
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
           VERSION: ${{ steps.ver.outputs.version }}
-
-      - name: Explain a failed deploy
-        if: failure() && steps.deploy.outcome == 'failure'
         run: |
-          echo "::error::The SVN commit failed. Look just above in 'WordPress Plugin Deploy' for the svn line. 'E170001' or 'Authorization failed' means WordPress.org refused the username or SVN password stored in this repository's secrets; 'E175002' or a timeout means WordPress.org's server did not answer — re-run."
+          set -o pipefail
+          URL="https://plugins.svn.wordpress.org/$SLUG"
+          SVN_DIR="$RUNNER_TEMP/svn"
+          LOG="$RUNNER_TEMP/svn.log"
+          fail() {
+            echo "::error title=$1::$(tail -n 8 "$LOG" | tr '\n' ' ' | sed 's/%/%25/g')"
+            exit 1
+          }
+          AUTH=(--non-interactive --no-auth-cache --username "$SVN_USERNAME" --password "$SVN_PASSWORD")
+
+          echo "Checking out $URL"
+          svn checkout --depth immediates "$URL" "$SVN_DIR" "${AUTH[@]}" >"$LOG" 2>&1 || fail "SVN checkout failed"
+          svn update --set-depth infinity "$SVN_DIR/trunk" "${AUTH[@]}" >>"$LOG" 2>&1 || fail "SVN update of trunk failed"
+          svn update --set-depth infinity "$SVN_DIR/assets" "${AUTH[@]}" >>"$LOG" 2>&1 || true
+
+          echo "Copying files into trunk (skipping everything in .distignore)"
+          rsync -rc --exclude-from=.distignore --exclude=.git --exclude=.github ./ "$SVN_DIR/trunk/" --delete --delete-excluded
+          if [ -d .wordpress-org ]; then rsync -rc .wordpress-org/ "$SVN_DIR/assets/" --delete; fi
+
+          cd "$SVN_DIR"
+          svn add . --force --quiet >>"$LOG" 2>&1 || true
+          svn status | awk '/^!/ {print $2}' | xargs -r -I% svn rm --quiet %@ >>"$LOG" 2>&1 || true
+          svn cp trunk "tags/$VERSION" >>"$LOG" 2>&1 || fail "Could not create tags/$VERSION"
+          echo "Changes:"; svn status | head -50
+
+          echo "Committing $VERSION as $SVN_USERNAME"
+          if ! svn commit -m "Release $VERSION" "${AUTH[@]}" >>"$LOG" 2>&1; then
+            if grep -qiE "E170001|E215004|authoriz|403 Forbidden|401" "$LOG"; then
+              fail "WordPress.org refused the login for $SVN_USERNAME (check SVN_USERNAME / SVN_PASSWORD in this repository's secrets)"
+            fi
+            fail "SVN commit failed"
+          fi
+          tail -n 3 "$LOG"
+          echo "Deployed $VERSION to WordPress.org."
+
+          # Zip for the GitHub Release
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p "$RUNNER_TEMP/zip/$SLUG"
+          rsync -rc "$SVN_DIR/trunk/" "$RUNNER_TEMP/zip/$SLUG/"
+          (cd "$RUNNER_TEMP/zip" && zip -qr "$GITHUB_WORKSPACE/$SLUG.zip" "$SLUG")
+          echo "zip-path=$GITHUB_WORKSPACE/$SLUG.zip" >> "$GITHUB_OUTPUT"
 
       - name: Attach the zip to the GitHub Release
         if: github.event_name == 'release'
