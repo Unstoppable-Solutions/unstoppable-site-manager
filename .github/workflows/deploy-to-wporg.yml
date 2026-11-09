@@ -1,15 +1,9 @@
 name: Deploy to WordPress.org
 
-# This workflow is dormant until Unstoppable Site Manager is accepted
-# into the WordPress.org plugin directory. It will fail with a clear
-# SVN checkout error if a release is published before then — expected
-# and harmless.
-#
-# Once accepted:
-#   1. Make sure SVN_USERNAME and SVN_PASSWORD secrets are set in
-#      repo Settings → Secrets and variables → Actions.
-#   2. Create a GitHub Release tagged vX.Y.Z — this workflow fires
-#      automatically and deploys to WordPress.org SVN.
+# Runs when a GitHub Release is published (tag vX.Y.Z), or by hand from
+# Actions → Deploy to WordPress.org → Run workflow (enter an existing tag).
+# Needs repository secrets SVN_USERNAME (WordPress.org username) and
+# SVN_PASSWORD (the SVN password from WordPress.org → Account & Security).
 
 on:
   release:
@@ -17,20 +11,66 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Manual trigger — specify the tag to deploy (e.g. v1.0.0)'
+        description: 'Tag to deploy (e.g. v1.2.3)'
         required: true
 
 permissions:
   contents: write
 
+concurrency:
+  group: wporg-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Push to WordPress.org SVN
     runs-on: ubuntu-latest
+    env:
+      SLUG: unstoppable-site-manager
+      TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.version }}
 
     steps:
-      - name: Check out repository
+      - name: Check out the release tag
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Work out the version
+        id: ver
+        run: |
+          V="${TAG#v}"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          H=$(grep -m1 -i '^[ *]*Version:' "$SLUG.php" | sed 's/.*Version:[[:space:]]*//' | tr -d '\r ')
+          S=$(grep -m1 -i '^Stable tag:' readme.txt | sed 's/.*:[[:space:]]*//' | tr -d '\r ')
+          echo "Tag $V | plugin header $H | readme stable tag $S"
+          if [ "$V" != "$H" ] || [ "$V" != "$S" ]; then
+            echo "::error::The tag ($V), the plugin's Version header ($H) and the readme's Stable tag ($S) must all match."
+            exit 1
+          fi
+
+      - name: Make sure SVN is installed
+        run: |
+          if ! command -v svn >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq subversion
+          fi
+          svn --version --quiet
+
+      - name: Check the WordPress.org login
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: |
+          if [ -z "$SVN_USERNAME" ] || [ -z "$SVN_PASSWORD" ]; then
+            echo "::error::SVN_USERNAME or SVN_PASSWORD is empty. Add them under this repository's Settings → Secrets and variables → Actions → Repository secrets."
+            exit 1
+          fi
+          echo "Username: $SVN_USERNAME (${#SVN_PASSWORD}-character password)"
+          svn info "https://plugins.svn.wordpress.org/$SLUG/trunk/" --non-interactive >/dev/null \
+            || { echo "::error::Could not reach plugins.svn.wordpress.org. It may be down; re-run in a few minutes."; exit 1; }
+          if svn ls "https://plugins.svn.wordpress.org/$SLUG/tags/${{ steps.ver.outputs.version }}/" --non-interactive >/dev/null 2>&1; then
+            echo "::error::Version ${{ steps.ver.outputs.version }} is already on WordPress.org. Bump the version and make a new release."
+            exit 1
+          fi
 
       - name: WordPress Plugin Deploy
         id: deploy
@@ -40,10 +80,16 @@ jobs:
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
-          SLUG: unstoppable-site-manager
+          VERSION: ${{ steps.ver.outputs.version }}
 
-      - name: Upload release zip as a GitHub Release asset
+      - name: Explain a failed deploy
+        if: failure() && steps.deploy.outcome == 'failure'
+        run: |
+          echo "::error::The SVN commit failed. Look just above in 'WordPress Plugin Deploy' for the svn line. 'E170001' or 'Authorization failed' means WordPress.org refused the username or SVN password stored in this repository's secrets; 'E175002' or a timeout means WordPress.org's server did not answer — re-run."
+
+      - name: Attach the zip to the GitHub Release
         if: github.event_name == 'release'
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.deploy.outputs.zip-path }}
