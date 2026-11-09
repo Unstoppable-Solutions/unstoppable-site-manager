@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.26.2
+Stable tag: 0.26.3
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -103,6 +103,9 @@ This plugin connects to the following services.
 **Temporary plugin hosting on your own site.** A ZIP you drop on Plugins > Add plugin, or one you install by web address (which this dashboard downloads from that address once), is kept in this plugin's own database table for up to 6 hours at an unguessable address so your client sites can download it, then deleted. No plugin files are written to your uploads folder. Client sites only install plugin files from WordPress.org or from your dashboard.
 
 == Changelog ==
+
+= 0.26.3 =
+* Maintenance: same as 0.26.2, which did not reach WordPress.org. Adds a missing note for translators on the Reports screen message. No change in how the plugin works.
 
 = 0.26.2 =
 * Maintenance: added a missing note for translators on the Reports screen message. No change in how the plugin works.
@@ -301,6 +304,9 @@ This plugin connects to the following services.
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.26.3 =
+Small maintenance release. Nothing changes in how the plugin works.
 
 = 0.26.2 =
 Small maintenance release. Nothing changes in how the plugin works.
