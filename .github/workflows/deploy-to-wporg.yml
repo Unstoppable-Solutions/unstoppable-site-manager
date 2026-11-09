@@ -24,14 +24,15 @@ concurrency:
 jobs:
   deploy:
     name: Push to WordPress.org SVN
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to Ubuntu 26 (Oct 2026) and the deploy broke there.
+    runs-on: ubuntu-24.04
     env:
       SLUG: unstoppable-site-manager
       TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.version }}
 
     steps:
       - name: Check out the release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.TAG }}
 
@@ -48,12 +49,18 @@ jobs:
             exit 1
           fi
 
-      - name: Make sure SVN is installed
+      - name: Make sure SVN, rsync and zip are installed
         run: |
-          if ! command -v svn >/dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y -qq subversion
+          need=""
+          command -v svn   >/dev/null || need="$need subversion"
+          command -v rsync >/dev/null || need="$need rsync"
+          command -v zip   >/dev/null || need="$need zip"
+          if [ -n "$need" ]; then
+            echo "Installing:$need"
+            sudo apt-get update -qq && sudo apt-get install -y -qq $need
           fi
-          svn --version --quiet
+          echo "svn $(svn --version --quiet) | $(rsync --version | head -1) | $(zip -v | sed -n 2p)"
+
 
       - name: Check the WordPress.org login
         env:
