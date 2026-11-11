@@ -535,7 +535,7 @@ final class USMD_Report {
 			$mailed = isset( $_GET['mailed'] ) ? sanitize_key( $_GET['mailed'] ) : '';
 			if ( 'sent' === $mailed ) :
 				?>
-				<div class="usmd-report-flash is-ok"><?php echo esc_html( sprintf( /* translators: %s: email addresses. */ __( 'Report emailed to %s.', 'unstoppable-site-manager' ), ( USMD_Report_Mail::sent( $site->id, $month )['to'] ?? '' ) ) ); ?></div>
+				<div class="usmd-report-flash is-ok"><?php echo esc_html( sprintf( /* translators: %s: email addresses. */ __( 'Report accepted by your mail server for %s.', 'unstoppable-site-manager' ), ( USMD_Report_Mail::sent( $site->id, $month )['to'] ?? '' ) ) ); ?></div>
 			<?php elseif ( 'test' === $mailed ) : ?>
 				<div class="usmd-report-flash is-ok"><?php echo esc_html( sprintf( /* translators: %s: email address. */ __( 'Test copy sent to %s.', 'unstoppable-site-manager' ), USMD_Admin::agency_email() ) ); ?></div>
 			<?php elseif ( 'error' === $mailed ) : ?>

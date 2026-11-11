@@ -139,17 +139,74 @@ final class USMD_Report_Mail {
 			$headers[] = 'Bcc: ' . USMD_Admin::agency_email();
 		}
 
-		$html = self::email_html( $site, $d );
-		$ok   = wp_mail( $to, $subject, $html, $headers );
+		/**
+		 * Filters a report email before it is handed to wp_mail().
+		 *
+		 * @param array   $mail  to (string[]), subject, html, headers (string[]).
+		 * @param object  $site  The site.
+		 * @param string  $month Y-m.
+		 * @param bool    $test  A test copy.
+		 */
+		$mail = apply_filters(
+			'usmd_report_email',
+			array(
+				'to'      => $to,
+				'subject' => $subject,
+				'html'    => self::email_html( $site, $d ),
+				'headers' => $headers,
+			),
+			$site,
+			$d['month'],
+			$test
+		);
+		$to = (array) $mail['to'];
+
+		/** Fires just before a report email is handed to wp_mail(). */
+		do_action( 'usmd_report_before_send', $site, $d['month'], $to, $test );
+
+		// wp_mail() only says true or false; the reason a send failed comes through wp_mail_failed.
+		$caught = null;
+		$listen = static function ( $e ) use ( &$caught ) {
+			$caught = $e;
+		};
+		add_action( 'wp_mail_failed', $listen );
+		$ok = wp_mail( $to, $mail['subject'], $mail['html'], $mail['headers'] );
+		remove_action( 'wp_mail_failed', $listen );
+
 		if ( ! $ok ) {
-			return new WP_Error( 'usmd_mail_failed', __( 'WordPress could not send the email. Check this site\'s mail settings (an SMTP plugin is recommended).', 'unstoppable-site-manager' ) );
+			$msg    = __( 'WordPress could not send the email. Check this site\'s mail settings (an SMTP plugin is recommended).', 'unstoppable-site-manager' );
+			$detail = is_wp_error( $caught ) ? self::redact( $caught->get_error_message() ) : '';
+			if ( '' !== $detail ) {
+				/* translators: %s: the mail system's error, with addresses and credentials removed. */
+				$msg .= ' ' . sprintf( __( 'The mail system said: %s', 'unstoppable-site-manager' ), $detail );
+			}
+			$err = new WP_Error( 'usmd_mail_failed', $msg );
+			/** Fires when a report email could not be handed to the mail server. */
+			do_action( 'usmd_report_failed', $site, $d['month'], $err, $test );
+			return $err;
 		}
+		/**
+		 * Fires when the mail system accepted a report email. Accepted is not the same as
+		 * delivered: a mail plugin can use this to start its own delivery check.
+		 */
+		do_action( 'usmd_report_sent', $site, $d['month'], $to, $test );
 		if ( ! $test ) {
 			self::mark_sent( $site->id, $d['month'], $to, $auto );
 			/* translators: 1: month, 2: email addresses. */
 			USMD_Sites::add_local_activity( $site->id, 'report', 'emailed', sprintf( __( '%1$s report to %2$s', 'unstoppable-site-manager' ), $d['label'], implode( ', ', $to ) ), array( 'auto' => (bool) $auto ) );
 		}
 		return true;
+	}
+
+	/** A mail error made safe to store and show: no email addresses, passwords or login strings. */
+	public static function redact( $text ) {
+		$t = wp_strip_all_tags( (string) $text );
+		$t = preg_replace( '/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', '[address]', $t );
+		$t = preg_replace( '/\b(pass(word)?|pwd|secret|token|api[_ -]?key|auth(entication)?|user(name)?|login)\b\s*[:=]\s*\S+/i', '$1: [removed]', $t );
+		$t = preg_replace( '/\bAUTH\s+(PLAIN|LOGIN|CRAM-MD5|XOAUTH2)\s+\S+/i', 'AUTH $1 [removed]', $t );
+		$t = preg_replace( '/\b[A-Za-z0-9+\/]{24,}={0,2}/', '[removed]', $t ); // Long encoded strings (base64 logins, keys).
+		$t = trim( preg_replace( '/\s+/', ' ', $t ) );
+		return strlen( $t ) > 300 ? substr( $t, 0, 300 ) . '…' : $t;
 	}
 
 	/** The month whose reports are going out now ('' before the chosen day and hour, or when sending is off). */
@@ -738,6 +795,26 @@ final class USMD_Report_Mail {
 	</table>
 </td></tr>
 <?php endif; ?>
+
+<?php
+/**
+ * Filters extra sections added to the end of a report email (before the sign-off).
+ *
+ * @param array[] $sections Each: title (plain text), html (allowed post HTML).
+ * @param object  $site     The site.
+ * @param array   $d        The report data.
+ */
+$usmd_extra = apply_filters( 'usmd_report_sections', array(), $site, $d );
+foreach ( is_array( $usmd_extra ) ? $usmd_extra : array() as $usmd_sec ) :
+	if ( ! is_array( $usmd_sec ) || empty( $usmd_sec['title'] ) ) {
+		continue;
+	}
+	?>
+<tr><td style="padding:24px 20px 0;">
+	<div style="font-size:16px;font-weight:700;padding-bottom:6px;border-bottom:2px solid <?php echo esc_attr( $accent ); ?>;"><?php echo esc_html( $usmd_sec['title'] ); ?></div>
+	<div style="padding-top:10px;"><?php echo wp_kses_post( isset( $usmd_sec['html'] ) ? $usmd_sec['html'] : '' ); ?></div>
+</td></tr>
+<?php endforeach; ?>
 
 <tr><td style="padding:24px 20px 26px;">
 	<p style="margin:0 0 6px;"><?php esc_html_e( 'Questions about your website? Just reply to this email.', 'unstoppable-site-manager' ); ?></p>

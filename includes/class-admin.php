@@ -687,7 +687,7 @@ final class USMD_Admin {
 									<?php wp_nonce_field( 'usmd_report_send' ); ?>
 									<button type="submit" class="button button-small"><?php echo $done && ! empty( $done['to'] ) ? esc_html__( 'Send again', 'unstoppable-site-manager' ) : esc_html__( 'Send now', 'unstoppable-site-manager' ); ?></button>
 								</form>
-								<?php if ( $done && ! empty( $done['to'] ) ) : ?><span class="usmd-muted usmd-reports-sent">✓ <?php echo esc_html( wp_date( 'M j', $done['time'] ) ); ?></span><?php endif; ?>
+								<?php if ( $done && ! empty( $done['to'] ) ) : ?><span class="usmd-muted usmd-reports-sent" title="<?php esc_attr_e( 'Accepted by your mail server on this date. Accepted does not prove it reached the inbox.', 'unstoppable-site-manager' ); ?>">✓ <?php echo esc_html( wp_date( 'M j', $done['time'] ) ); ?></span><?php endif; ?>
 								<?php if ( $done && ! empty( $done['skipped'] ) ) : ?><span class="usmd-muted usmd-reports-sent"><?php esc_html_e( 'Skipped', 'unstoppable-site-manager' ); ?></span><?php endif; ?>
 								<?php if ( $done && empty( $done['to'] ) ) : ?><span class="usmd-report-failed" title="<?php echo esc_attr( isset( $done['error'] ) ? $done['error'] : '' ); ?>">✕ <?php echo esc_html( isset( $done['error'] ) && $done['error'] ? $done['error'] : __( 'Failed', 'unstoppable-site-manager' ) ); ?></span><?php endif; ?>
 							<?php endif; ?>
@@ -1323,7 +1323,7 @@ final class USMD_Admin {
 		switch ( $a->type . '.' . $a->action ) {
 			case 'report.emailed':
 				/* translators: %s: month and recipients. */
-				return sprintf( __( 'Emailed the %s', 'unstoppable-site-manager' ), $a->object ) . ( ! empty( $d['auto'] ) ? ' ' . __( '(scheduled)', 'unstoppable-site-manager' ) : '' );
+				return sprintf( __( 'Mail server accepted the %s', 'unstoppable-site-manager' ), $a->object ) . ( ! empty( $d['auto'] ) ? ' ' . __( '(scheduled)', 'unstoppable-site-manager' ) : '' );
 			case 'report.email_failed':
 				/* translators: %s: error message. */
 				return sprintf( __( 'Scheduled report email failed: %s', 'unstoppable-site-manager' ), $a->object );
