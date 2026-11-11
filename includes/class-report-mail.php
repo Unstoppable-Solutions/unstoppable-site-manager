@@ -217,7 +217,7 @@ final class USMD_Report_Mail {
 	 */
 	public static function run( $month, $retry, $all = false ) {
 		if ( get_transient( 'usmd_report_running' ) ) {
-			return array( 'sent' => 0, 'failed' => 0, 'left' => count( self::waiting( $month, $retry, $all, ! $all ) ) );
+			return array( 'sent' => 0, 'failed' => 0, 'left' => count( self::waiting( $month, $retry, $all ) ) );
 		}
 		set_transient( 'usmd_report_running', 1, 5 * MINUTE_IN_SECONDS ); // Never two runs at once (double emails).
 		$trying = get_option( self::TRYING );
@@ -226,7 +226,8 @@ final class USMD_Report_Mail {
 		$failed = 0;
 		$left   = 0;
 		$start  = microtime( true );
-		foreach ( self::waiting( $month, $retry, $all, ! $all ) as $w ) {
+		// A report sent while its month was still running is sent again in full once the month is over, whichever button is used.
+		foreach ( self::waiting( $month, $retry, $all ) as $w ) {
 			$site = $w[0];
 			// A send that started over ten minutes ago and never finished: the server stopped it (time or memory limit).
 			if ( ! $retry && isset( $trying[ $site->id ] ) && time() - (int) $trying[ $site->id ] > 10 * MINUTE_IN_SECONDS ) {
@@ -294,10 +295,23 @@ final class USMD_Report_Mail {
 			<strong>
 				<?php
 				/* translators: 1: number of reports, 2: month. */
-				echo esc_html( sprintf( _n( '%1$d %2$s report has not gone out yet.', '%1$d %2$s reports have not gone out yet.', $n, 'unstoppable-site-manager' ), $n, $label ) );
+				echo esc_html( sprintf( _n( '%1$d report for %2$s has not gone out yet.', '%1$d reports for %2$s have not gone out yet.', $n, 'unstoppable-site-manager' ), $n, $label ) );
 				?>
 			</strong>
 			<?php
+			$early = count(
+				array_filter(
+					$o['items'],
+					static function ( $w ) use ( $o ) {
+						$row = self::sent( $w[0]->id, $o['month'] );
+						return $row && ! empty( $row['partial'] ) && ! empty( $row['to'] );
+					}
+				)
+			);
+			if ( $early ) {
+				/* translators: %d: number of reports. */
+				echo esc_html( sprintf( _n( '%d of them was sent before the month ended, so it is missing the last days; Send now sends the full month once.', '%d of them were sent before the month ended, so they are missing the last days; Send now sends the full month once.', $early, 'unstoppable-site-manager' ), $early ) ) . ' ';
+			}
 			if ( $failed ) {
 				/* translators: %d: number of reports. */
 				echo esc_html( sprintf( _n( '%d failed: see the reason on the Reports screen.', '%d failed: see the reasons on the Reports screen.', $failed, 'unstoppable-site-manager' ), $failed ) ) . ' ';
