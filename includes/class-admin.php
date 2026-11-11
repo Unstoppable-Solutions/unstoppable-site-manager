@@ -688,6 +688,7 @@ final class USMD_Admin {
 									<button type="submit" class="button button-small"><?php echo $done && ! empty( $done['to'] ) ? esc_html__( 'Send again', 'unstoppable-site-manager' ) : esc_html__( 'Send now', 'unstoppable-site-manager' ); ?></button>
 								</form>
 								<?php if ( $done && ! empty( $done['to'] ) ) : ?><span class="usmd-muted usmd-reports-sent">✓ <?php echo esc_html( wp_date( 'M j', $done['time'] ) ); ?></span><?php endif; ?>
+								<?php if ( $done && ! empty( $done['skipped'] ) ) : ?><span class="usmd-muted usmd-reports-sent"><?php esc_html_e( 'Skipped', 'unstoppable-site-manager' ); ?></span><?php endif; ?>
 								<?php if ( $done && empty( $done['to'] ) ) : ?><span class="usmd-report-failed" title="<?php echo esc_attr( isset( $done['error'] ) ? $done['error'] : '' ); ?>">✕ <?php echo esc_html( isset( $done['error'] ) && $done['error'] ? $done['error'] : __( 'Failed', 'unstoppable-site-manager' ) ); ?></span><?php endif; ?>
 							<?php endif; ?>
 						</td>

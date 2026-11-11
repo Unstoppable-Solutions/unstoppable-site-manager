@@ -32,6 +32,7 @@ final class USMD_Report_Mail {
 		add_action( 'usmd_monitor_tick', array( __CLASS__, 'tick_backup' ) );
 		add_action( 'admin_post_usmd_reports_send_due', array( __CLASS__, 'handle_send_due' ) );
 		add_action( 'admin_post_usmd_reports_send_month', array( __CLASS__, 'handle_send_month' ) );
+		add_action( 'admin_post_usmd_reports_skip_due', array( __CLASS__, 'handle_skip_due' ) );
 		add_action( 'init', array( __CLASS__, 'ensure_scheduled' ) );
 		add_action( 'admin_post_usmd_report_send', array( __CLASS__, 'handle_send' ) );
 		add_action( 'admin_post_usmd_client', array( __CLASS__, 'handle_client' ) );
@@ -90,7 +91,7 @@ final class USMD_Report_Mail {
 	public static function failure( $site_id ) {
 		$month = self::due_month();
 		$row   = $month ? self::sent( $site_id, $month ) : null;
-		if ( ! $row || ! empty( $row['to'] ) ) {
+		if ( ! $row || ! empty( $row['to'] ) || ! empty( $row['skipped'] ) ) {
 			return '';
 		}
 		return ! empty( $row['error'] ) ? (string) $row['error'] : __( 'The email could not be sent.', 'unstoppable-site-manager' );
@@ -182,6 +183,9 @@ final class USMD_Report_Mail {
 				continue;
 			}
 			$row = self::sent( $site->id, $month );
+			if ( $row && ! empty( $row['skipped'] ) ) {
+				continue; // Skipped on purpose from the overdue notice.
+			}
 			if ( ! $row || ( $redo_partial && ! empty( $row['partial'] ) && $month !== wp_date( 'Y-m' ) ) ) {
 				$out[] = array( $site, '' );
 			} elseif ( $failed && empty( $row['to'] ) ) {
@@ -324,6 +328,15 @@ final class USMD_Report_Mail {
 				<button type="submit" class="button button-primary"><?php esc_html_e( 'Send now', 'unstoppable-site-manager' ); ?></button>
 			</form>
 			<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=usmd-reports' ) ); ?>"><?php esc_html_e( 'Reports', 'unstoppable-site-manager' ); ?></a>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
+				<input type="hidden" name="action" value="usmd_reports_skip_due">
+				<?php wp_nonce_field( 'usmd_reports_skip_due' ); ?>
+				<?php
+				/* translators: 1: number of reports, 2: month. */
+				$usmd_ask = sprintf( _n( 'Skip %1$d report for %2$s? It will not be sent, and this notice goes away. You can still send it by hand from the Reports screen.', 'Skip these %1$d reports for %2$s? They will not be sent, and this notice goes away. You can still send any of them by hand from the Reports screen.', $n, 'unstoppable-site-manager' ), $n, $label );
+				?>
+				<button type="submit" class="button-link" data-ask="<?php echo esc_attr( $usmd_ask ); ?>"><?php esc_html_e( 'Skip these, don\'t send', 'unstoppable-site-manager' ); ?></button>
+			</form>
 		</p></div>
 		<?php
 	}
@@ -402,6 +415,35 @@ final class USMD_Report_Mail {
 		delete_transient( 'usmd_report_running' ); // A run stopped by the server must not block a manual send.
 		$r = self::run( $month, true );
 		wp_safe_redirect( add_query_arg( array( 'page' => 'usmd-reports', 'sent' => (int) $r['sent'], 'failed' => (int) $r['failed'], 'left' => (int) $r['left'] ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/** Overdue notice: mark the waiting reports as handled without sending them. */
+	public static function handle_skip_due() {
+		self::guard( 'usmd_reports_skip_due' );
+		$o = self::overdue();
+		if ( $o && $o['items'] ) {
+			$all = get_option( self::SENT );
+			$all = is_array( $all ) ? $all : array();
+			foreach ( $o['items'] as $w ) {
+				$id  = (int) $w[0]->id;
+				$row = isset( $all[ $id ][ $o['month'] ] ) ? $all[ $id ][ $o['month'] ] : null;
+				if ( $row && ! empty( $row['to'] ) ) {
+					$all[ $id ][ $o['month'] ]['partial'] = false; // Keep the mid-month send as this month's report.
+				} else {
+					$all[ $id ][ $o['month'] ] = array(
+						'time'    => time(),
+						'to'      => '',
+						'auto'    => false,
+						'error'   => '',
+						'partial' => false,
+						'skipped' => true,
+					);
+				}
+			}
+			update_option( self::SENT, $all, false );
+		}
+		wp_safe_redirect( admin_url( 'admin.php?page=' . USMD_Admin::SLUG ) );
 		exit;
 	}
 
