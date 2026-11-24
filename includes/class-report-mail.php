@@ -589,7 +589,7 @@ final class USMD_Report_Mail {
 		$sum    = $d['sum'];
 		$c      = $sum['counts'];
 		$v      = $d['verdict'];
-		$thumb  = USMD_Thumbs::url( $site );
+		$thumb  = USMD_Report::shows( $s, 'screenshot' ) ? USMD_Thumbs::url( $site ) : '';
 		$name   = $site->name;
 		$greet  = $site->client_name ? sprintf( /* translators: %s: client name. */ __( 'Hi %s,', 'unstoppable-site-manager' ), $site->client_name ) : __( 'Hello,', 'unstoppable-site-manager' );
 
@@ -643,6 +643,7 @@ final class USMD_Report_Mail {
 	</tr></table>
 </td></tr>
 
+<?php if ( USMD_Report::shows( $s, 'kpis' ) ) : ?>
 <tr><td style="padding:16px 20px 0;">
 	<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid <?php echo esc_attr( $rule ); ?>;border-radius:8px;"><tr>
 		<?php
@@ -661,6 +662,7 @@ final class USMD_Report_Mail {
 		<?php endforeach; ?>
 	</tr></table>
 </td></tr>
+<?php endif; ?>
 
 <?php if ( $thumb ) : ?>
 <tr><td style="padding:20px 20px 0;">
@@ -668,6 +670,7 @@ final class USMD_Report_Mail {
 </td></tr>
 <?php endif; ?>
 
+<?php if ( $d['health'] ) : ?>
 <tr><td style="padding:20px 20px 0;">
 	<div style="font-size:16px;font-weight:700;margin:0 0 6px;"><?php esc_html_e( 'Site health today', 'unstoppable-site-manager' ); ?></div>
 	<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -684,6 +687,7 @@ final class USMD_Report_Mail {
 		<?php endforeach; ?>
 	</table>
 </td></tr>
+<?php endif; ?>
 
 <?php $sec = isset( $d['security'] ) ? $d['security'] : array( 'open' => array(), 'fixed' => array() ); ?>
 <?php if ( $sec['open'] || $sec['fixed'] ) : ?>
@@ -757,6 +761,7 @@ final class USMD_Report_Mail {
 </td></tr>
 <?php endif; ?>
 
+<?php if ( USMD_Report::shows( $s, 'updates' ) ) : ?>
 <tr><td style="padding:24px 20px 0;">
 	<div style="font-size:16px;font-weight:700;padding-bottom:6px;border-bottom:2px solid <?php echo esc_attr( $accent ); ?>;"><?php esc_html_e( 'Updates applied', 'unstoppable-site-manager' ); ?></div>
 	<?php if ( $sum['updates'] ) : ?>
@@ -781,8 +786,9 @@ final class USMD_Report_Mail {
 		<p style="margin:10px 0 0;color:<?php echo esc_attr( $muted ); ?>;"><?php esc_html_e( 'No updates were applied this month.', 'unstoppable-site-manager' ); ?></p>
 	<?php endif; ?>
 </td></tr>
+<?php endif; ?>
 
-<?php if ( $sum['changes'] ) : ?>
+<?php if ( $sum['changes'] && USMD_Report::shows( $s, 'changes' ) ) : ?>
 <tr><td style="padding:24px 20px 0;">
 	<div style="font-size:16px;font-weight:700;padding-bottom:6px;border-bottom:2px solid <?php echo esc_attr( $accent ); ?>;"><?php esc_html_e( 'Other changes to your site', 'unstoppable-site-manager' ); ?></div>
 	<table role="presentation" width="100%" cellpadding="0" cellspacing="0">

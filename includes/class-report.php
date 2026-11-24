@@ -332,6 +332,32 @@ final class USMD_Report {
 	/**
 	 * Health checklist. Each item: label, value, state (ok | warn | bad).
 	 */
+	/** Parts of a client report that can be switched off in Settings (key => label). */
+	public static function parts() {
+		return array(
+			'kpis'       => __( 'Numbers at the top (updates, plugins, themes, WordPress)', 'unstoppable-site-manager' ),
+			'screenshot' => __( 'Home page screenshot', 'unstoppable-site-manager' ),
+			'wordpress'  => __( 'Site health: WordPress version', 'unstoppable-site-manager' ),
+			'php'        => __( 'Site health: PHP version', 'unstoppable-site-manager' ),
+			'ssl'        => __( 'Site health: security certificate (SSL)', 'unstoppable-site-manager' ),
+			'uptime'     => __( 'Site health: uptime', 'unstoppable-site-manager' ),
+			'speed'      => __( 'Site health: page speed', 'unstoppable-site-manager' ),
+			'pending'    => __( 'Site health: updates waiting', 'unstoppable-site-manager' ),
+			'monitoring' => __( 'Site health: monitoring status', 'unstoppable-site-manager' ),
+			'vulns'      => __( 'Site health: known vulnerabilities', 'unstoppable-site-manager' ),
+			'store'      => __( 'Site health: online store orders', 'unstoppable-site-manager' ),
+			'security'   => __( 'Security section (fixes and items still to fix)', 'unstoppable-site-manager' ),
+			'work'       => __( 'Work we did for you (work notes)', 'unstoppable-site-manager' ),
+			'updates'    => __( 'List of updates applied', 'unstoppable-site-manager' ),
+			'changes'    => __( 'Other changes to the site', 'unstoppable-site-manager' ),
+		);
+	}
+
+	/** Is this part of the report switched on, for these settings? */
+	public static function shows( array $s, $part ) {
+		return ! in_array( $part, isset( $s['report_hide'] ) ? (array) $s['report_hide'] : array(), true );
+	}
+
 	/** @param int[]|null $period [ from, to ] timestamps of the report month, for the uptime line. */
 	public static function health( $site, $period = null ) {
 		$st    = USMD_Sites::status( $site );
@@ -343,6 +369,7 @@ final class USMD_Report {
 		$items[] = $site->core_update
 			? array( __( 'WordPress', 'unstoppable-site-manager' ), sprintf( /* translators: 1: installed version, 2: available version. */ __( '%1$s, update to %2$s available', 'unstoppable-site-manager' ), $site->wp_version, $core ? $core : '?' ), 'warn' )
 			: array( __( 'WordPress', 'unstoppable-site-manager' ), sprintf( /* translators: %s: version. */ __( '%s, up to date', 'unstoppable-site-manager' ), $site->wp_version ), 'ok' );
+		$items[ count( $items ) - 1 ][3] = 'wordpress';
 
 		if ( '' === $php ) {
 			$items[] = array( __( 'PHP', 'unstoppable-site-manager' ), __( 'Unknown', 'unstoppable-site-manager' ), 'warn' );
@@ -353,6 +380,7 @@ final class USMD_Report {
 		} else {
 			$items[] = array( __( 'PHP', 'unstoppable-site-manager' ), sprintf( /* translators: %s: version. */ __( '%s, no longer supported', 'unstoppable-site-manager' ), $php ), 'bad' );
 		}
+		$items[ count( $items ) - 1 ][3] = 'php';
 
 		if ( empty( $ssl['enabled'] ) ) {
 			$items[] = array( __( 'Security certificate (SSL)', 'unstoppable-site-manager' ), __( 'Not set up: visitors see "Not secure"', 'unstoppable-site-manager' ), 'bad' );
@@ -364,29 +392,34 @@ final class USMD_Report {
 			$days    = (int) $ssl['days_left'];
 			$items[] = array( __( 'Security certificate (SSL)', 'unstoppable-site-manager' ), sprintf( /* translators: %d: days. */ _n( 'Valid for %d more day', 'Valid for %d more days', $days, 'unstoppable-site-manager' ), $days ), $days < USMD_Admin::SSL_WARN_DAYS ? 'warn' : 'ok' );
 		}
+		$items[ count( $items ) - 1 ][3] = 'ssl';
 
 		if ( USMD_Monitor::enabled() && $period ) {
 			$pct = USMD_Monitor::uptime_percent( $site->id, $period[0], $period[1] );
 			if ( null !== $pct ) {
 				/* translators: %s: percent. */
 				$items[] = array( __( 'Uptime', 'unstoppable-site-manager' ), sprintf( __( '%s%% of the time this month', 'unstoppable-site-manager' ), USMD_Monitor::fmt_pct( $pct ) ), $pct >= 99.5 ? 'ok' : ( $pct >= 98 ? 'warn' : 'bad' ) );
+				$items[ count( $items ) - 1 ][3] = 'uptime';
 			}
 		}
 
 		$speed = USMD_Speed::report_item( $site );
 		if ( $speed ) {
-			$items[] = $speed;
+			$speed[3] = 'speed';
+			$items[]  = $speed;
 		}
 
 		$pending = (int) $site->updates;
 		$items[] = $pending
 			? array( __( 'Updates waiting', 'unstoppable-site-manager' ), sprintf( /* translators: %d: number of updates. */ _n( '%d update waiting', '%d updates waiting', $pending, 'unstoppable-site-manager' ), $pending ), 'warn' )
 			: array( __( 'Updates waiting', 'unstoppable-site-manager' ), __( 'None, everything is current', 'unstoppable-site-manager' ), 'ok' );
+		$items[ count( $items ) - 1 ][3] = 'pending';
 
 		$seen    = $site->last_seen ? strtotime( $site->last_seen . ' UTC' ) : 0;
 		$items[] = ( $seen && time() - $seen < 2 * DAY_IN_SECONDS )
 			? array( __( 'Monitoring', 'unstoppable-site-manager' ), sprintf( /* translators: %s: date and time. */ __( 'Active, last checked %s', 'unstoppable-site-manager' ), wp_date( 'M j, g:i a', $seen ) ), 'ok' )
 			: array( __( 'Monitoring', 'unstoppable-site-manager' ), $seen ? sprintf( /* translators: %s: date. */ __( 'Not heard from since %s', 'unstoppable-site-manager' ), wp_date( 'M j', $seen ) ) : __( 'Not connected yet', 'unstoppable-site-manager' ), 'warn' );
+		$items[ count( $items ) - 1 ][3] = 'monitoring';
 
 		if ( USMD_Vulns::enabled() ) {
 			$vr = USMD_Vulns::for_site( $site->id );
@@ -395,12 +428,13 @@ final class USMD_Report {
 				$items[] = $n
 					? array( __( 'Known vulnerabilities', 'unstoppable-site-manager' ), sprintf( /* translators: %d: number of items. */ _n( '%d item needs a security update', '%d items need security updates', $n, 'unstoppable-site-manager' ), $n ), 'bad' )
 					: array( __( 'Known vulnerabilities', 'unstoppable-site-manager' ), __( 'None found', 'unstoppable-site-manager' ), 'ok' );
+				$items[ count( $items ) - 1 ][3] = 'vulns';
 			}
 		}
 
 		$wc = isset( $st['integrations']['woocommerce'] ) ? $st['integrations']['woocommerce'] : null;
 		if ( is_array( $wc ) && isset( $wc['orders_30d'] ) ) {
-			$items[] = array( __( 'Online store', 'unstoppable-site-manager' ), sprintf( /* translators: %d: number of orders. */ _n( '%d order in the last 30 days', '%d orders in the last 30 days', (int) $wc['orders_30d'], 'unstoppable-site-manager' ), (int) $wc['orders_30d'] ), 'ok' );
+			$items[] = array( __( 'Online store', 'unstoppable-site-manager' ), sprintf( /* translators: %d: number of orders. */ _n( '%d order in the last 30 days', '%d orders in the last 30 days', (int) $wc['orders_30d'], 'unstoppable-site-manager' ), (int) $wc['orders_30d'] ), 'ok', 'store' );
 		}
 		return $items;
 	}
@@ -429,8 +463,19 @@ final class USMD_Report {
 		);
 		$sum    = self::summarise( array_reverse( $rows ) ); // Oldest first.
 		$work   = USMD_Work::from_rows( $rows );
-		$health = self::health( $site, array( $start->getTimestamp(), $end->getTimestamp() ) );
 		$s      = USMD_Clients::settings_for( $site ); // Settings, with the client's branding on top.
+		// Lines switched off in Settings are left out, and don't count toward the verdict either.
+		$health = array_values(
+			array_filter(
+				self::health( $site, array( $start->getTimestamp(), $end->getTimestamp() ) ),
+				static function ( $h ) use ( $s ) {
+					return empty( $h[3] ) || self::shows( $s, $h[3] );
+				}
+			)
+		);
+		if ( ! self::shows( $s, 'work' ) ) {
+			$work = array();
+		}
 		$note   = self::get_note( $site->id, $month );
 		$label  = wp_date( 'F Y', $start->getTimestamp() );
 		$prev   = $start->modify( '-1 month' )->format( 'Y-m' );
@@ -466,7 +511,7 @@ final class USMD_Report {
 			/* translators: %s: month. */
 			$lead = sprintf( __( 'No updates were applied in %s.', 'unstoppable-site-manager' ), $label );
 		}
-		if ( $change_count ) {
+		if ( $change_count && self::shows( $s, 'changes' ) ) {
 			/* translators: %d: number of changes. */
 			$lead .= ' ' . sprintf( _n( 'We also recorded %d other change to the site.', 'We also recorded %d other changes to the site.', $change_count, 'unstoppable-site-manager' ), $change_count );
 		}
@@ -479,7 +524,7 @@ final class USMD_Report {
 			'month'   => $month,
 			'sum'     => $sum,
 			'health'  => $health,
-			'security'=> self::security( $site, $sum['updates'] ),
+			'security'=> self::shows( $s, 'security' ) ? self::security( $site, $sum['updates'] ) : array( 'open' => array(), 'fixed' => array() ),
 			'settings'=> $s,
 			'note'    => $note,
 			'label'   => $label,
@@ -643,14 +688,17 @@ final class USMD_Report {
 					</div>
 				</section>
 
+				<?php if ( self::shows( $s, 'kpis' ) ) : ?>
 				<section class="usmd-r-kpis" aria-label="<?php esc_attr_e( 'This month in numbers', 'unstoppable-site-manager' ); ?>">
 					<div><strong><?php echo (int) $c['total']; ?></strong><span><?php esc_html_e( 'Updates applied', 'unstoppable-site-manager' ); ?></span></div>
 					<div><strong><?php echo (int) $c['plugin']; ?></strong><span><?php esc_html_e( 'Plugins updated', 'unstoppable-site-manager' ); ?></span></div>
 					<div><strong><?php echo (int) $c['theme']; ?></strong><span><?php esc_html_e( 'Themes updated', 'unstoppable-site-manager' ); ?></span></div>
 					<div><strong><?php echo $c['core'] ? esc_html__( 'Yes', 'unstoppable-site-manager' ) : esc_html__( 'No', 'unstoppable-site-manager' ); ?></strong><span><?php esc_html_e( 'WordPress updated', 'unstoppable-site-manager' ); ?></span></div>
 				</section>
+				<?php endif; ?>
 
-				<?php $thumb = USMD_Thumbs::url( $site ); ?>
+				<?php $thumb = self::shows( $s, 'screenshot' ) ? USMD_Thumbs::url( $site ) : ''; ?>
+				<?php if ( $health || $thumb ) : ?>
 				<section class="usmd-r-health<?php echo $thumb ? ' has-shot' : ''; ?>">
 					<?php if ( $thumb ) : ?>
 						<figure class="usmd-r-shot">
@@ -671,6 +719,7 @@ final class USMD_Report {
 						</ul>
 					</div>
 				</section>
+				<?php endif; ?>
 
 				<?php $sec = $d['security']; ?>
 				<?php if ( $sec['open'] || $sec['fixed'] ) : ?>
@@ -757,6 +806,7 @@ final class USMD_Report {
 					</section>
 				<?php endif; ?>
 
+				<?php if ( self::shows( $s, 'updates' ) ) : ?>
 				<section class="usmd-r-section">
 					<h2><?php esc_html_e( 'Updates applied', 'unstoppable-site-manager' ); ?></h2>
 					<?php if ( $sum['updates'] ) : ?>
@@ -788,8 +838,9 @@ final class USMD_Report {
 						<p class="usmd-r-empty"><?php esc_html_e( 'No updates were applied this month.', 'unstoppable-site-manager' ); ?></p>
 					<?php endif; ?>
 				</section>
+				<?php endif; ?>
 
-				<?php if ( $sum['changes'] ) : ?>
+				<?php if ( $sum['changes'] && self::shows( $s, 'changes' ) ) : ?>
 					<section class="usmd-r-section">
 						<h2><?php esc_html_e( 'Other changes to your site', 'unstoppable-site-manager' ); ?></h2>
 						<dl class="usmd-r-changes">

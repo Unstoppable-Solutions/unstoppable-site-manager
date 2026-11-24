@@ -109,6 +109,7 @@ final class USMD_Admin {
 				'report_reply_to'   => '',
 				'report_bcc_me'     => 1,
 				'report_time'       => 0, // Show time spent on work notes in client reports.
+				'report_hide'       => array(), // Report parts switched off (keys of USMD_Report::parts()).
 				'agency_email'      => '',
 				'thumb_provider' => 'off', // Opt-in: a screenshot service receives each client site's address.
 				'thumb_template' => '',
@@ -1480,6 +1481,15 @@ final class USMD_Admin {
 					<tr><th><label for="usmd-report-reply"><?php esc_html_e( 'Replies go to', 'unstoppable-site-manager' ); ?></label></th><td><input id="usmd-report-reply" name="report_reply_to" type="email" class="regular-text" value="<?php echo esc_attr( $s['report_reply_to'] ); ?>" placeholder="<?php echo esc_attr( self::agency_email() ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Copy for you', 'unstoppable-site-manager' ); ?></th><td><label><input type="checkbox" name="report_bcc_me" value="1" <?php checked( ! empty( $s['report_bcc_me'] ) ); ?>> <?php echo esc_html( sprintf( /* translators: %s: email address. */ __( 'Send me a blind copy of every report (%s)', 'unstoppable-site-manager' ), self::agency_email() ) ); ?></label></td></tr>
 					<tr><th><?php esc_html_e( 'Time spent', 'unstoppable-site-manager' ); ?></th><td><label><input type="checkbox" name="report_time" value="1" <?php checked( ! empty( $s['report_time'] ) ); ?>> <?php esc_html_e( 'Show the time spent on each task in client reports', 'unstoppable-site-manager' ); ?></label><p class="description"><?php esc_html_e( 'Off: time you enter on work notes is only for you (totals per client are on the Clients screen).', 'unstoppable-site-manager' ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'What reports include', 'unstoppable-site-manager' ); ?></th><td>
+						<fieldset class="usmd-report-parts">
+							<legend class="screen-reader-text"><?php esc_html_e( 'What reports include', 'unstoppable-site-manager' ); ?></legend>
+							<?php foreach ( USMD_Report::parts() as $usmd_k => $usmd_label ) : ?>
+								<label><input type="checkbox" name="report_show[]" value="<?php echo esc_attr( $usmd_k ); ?>" <?php checked( USMD_Report::shows( $s, $usmd_k ) ); ?>> <?php echo esc_html( $usmd_label ); ?></label><br>
+							<?php endforeach; ?>
+						</fieldset>
+						<p class="description"><?php esc_html_e( 'Unticked parts are left out of every client report, on screen and by email. A health line you leave out also doesn\'t count toward the report\'s overall verdict. Your own note for the month is always included.', 'unstoppable-site-manager' ); ?></p>
+					</td></tr>
 				</table>
 				<h2 id="usmd-vuln-settings"><?php esc_html_e( 'Vulnerability checks', 'unstoppable-site-manager' ); ?></h2>
 				<table class="form-table" role="presentation">
@@ -1690,6 +1700,8 @@ final class USMD_Admin {
 				'report_reply_to'   => isset( $_POST['report_reply_to'] ) ? sanitize_email( wp_unslash( $_POST['report_reply_to'] ) ) : '',
 				'report_bcc_me'     => empty( $_POST['report_bcc_me'] ) ? 0 : 1,
 				'report_time'       => empty( $_POST['report_time'] ) ? 0 : 1,
+				// Checked boxes are the parts to show; everything else in the list is hidden.
+				'report_hide'       => array_values( array_diff( array_keys( USMD_Report::parts() ), isset( $_POST['report_show'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['report_show'] ) ) : array() ) ),
 				'agency_email'      => isset( $_POST['agency_email'] ) ? sanitize_email( wp_unslash( $_POST['agency_email'] ) ) : '',
 				'thumb_provider' => isset( $_POST['thumb_provider'] ) && in_array( $_POST['thumb_provider'], array( 'mshots', 'custom', 'off' ), true ) ? sanitize_key( $_POST['thumb_provider'] ) : 'off',
 				'thumb_template' => isset( $_POST['thumb_template'] ) ? esc_url_raw( str_replace( '{url}', 'USMDURLTOKEN', sanitize_text_field( wp_unslash( $_POST['thumb_template'] ) ) ) ) : '',

@@ -4,7 +4,7 @@ Donate link: https://unstoppablesolutions.app/donate
 Tags: manage multiple sites, updates, maintenance, client reports, agency
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 0.26.8
+Stable tag: 0.27.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -113,6 +113,9 @@ Yes. These hooks run on the dashboard site when a report email goes out:
 "Sent" in Site Manager means your mail server accepted the email, which does not prove it reached the inbox. When sending fails, the reason from WordPress's `wp_mail_failed` is shown with email addresses, passwords and login strings removed.
 
 == Changelog ==
+
+= 0.27.0 =
+* New: choose what client reports include. Settings, under the report options, has a checkbox for each part: the numbers at the top, home page screenshot, each Site health line (WordPress, PHP, SSL, uptime, page speed, updates waiting, monitoring, vulnerabilities, store orders), the Security section, work notes, the list of updates and other changes. Unticked parts are left out of reports on screen and by email, and a health line you leave out doesn't count toward the overall verdict. Everything stays on until you change it.
 
 = 0.26.8 =
 * Improved: when a report email fails, the Reports screen now shows the mail system's actual reason (from wp_mail_failed), with email addresses, passwords and login strings removed.
@@ -332,6 +335,9 @@ Yes. These hooks run on the dashboard site when a report email goes out:
 * Works with both Unstoppable Site Connector and the older FM Connector.
 
 == Upgrade Notice ==
+
+= 0.27.0 =
+Choose which parts appear in client reports (for example, leave out uptime).
 
 = 0.26.8 =
 Clearer report email failures, and hooks for mail plugins.
